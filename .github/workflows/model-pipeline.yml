@@ -1,5 +1,5 @@
 # ==============================================================================
-# Keisler Weather Engine — Reusable Model CI Pipeline
+# WeatherGraph — Reusable Model CI Pipeline
 #
 # Validates the engine against any ONNX model — pre-built or freshly converted.
 #
@@ -16,7 +16,7 @@
 #
 #   jobs:
 #     validate:
-#       uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+#       uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
 #       with:
 #         model-source: onnx
 #         model-url: https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx
@@ -25,18 +25,18 @@
 #
 #   jobs:
 #     validate:
-#       uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+#       uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
 #       with:
 #         model-source: script
 #         model-script: scripts/export_pytorch.py
 #         model-script-args: '--checkpoint weights/my_model.pt'
 #         model-pip-requirements: 'torch==2.3.0'
 #
-# Example: build the Keisler ONNX from the repo's own extractor scripts
+# Example: build the reference ONNX from the repo's own extractor scripts
 #
 #   jobs:
 #     validate:
-#       uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+#       uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
 #       with:
 #         model-source: script
 #         model-script: exporter/build_gnn_graph.py
@@ -102,7 +102,7 @@ on:
         description: >
           Pre-built ONNX download URL.
           Used when model-source = "onnx".
-          Default points to the Keisler_2022 ONNX on HuggingFace.
+          Default points to the reference 2022 ONNX on HuggingFace.
         required: false
         default: 'https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx'
         type: string
@@ -153,7 +153,7 @@ jobs:
             pytest psutil memory-profiler onnx
 
       # ── Build the C++ engine ─────────────────────────────────────────────────
-      - name: Build Keisler Engine
+      - name: Build WeatherGraph engine
         id: engine
         uses: ./.github/actions/setup-weathergraph
         with:

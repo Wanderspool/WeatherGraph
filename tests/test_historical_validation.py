@@ -25,7 +25,7 @@ def real_environment():
     If they don't, the entire test suite is skipped with a clear explanation.
     """
     model_path = os.getenv("WEATHERGRAPH_ONNX_MODEL", "models/weather_gnn.onnx")
-    weights_dir = os.getenv("KEISLER_WEIGHTS_DIR", "exporter")
+    weights_dir = os.getenv("WEATHERGRAPH_WEIGHTS_DIR", os.getenv("KEISLER_WEIGHTS_DIR", "exporter"))
     data_dir = os.getenv("ERA5_DATA_DIR", "data/era5_archives")
 
     if not os.path.exists(model_path):

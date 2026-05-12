@@ -1,5 +1,5 @@
 # =============================================================================
-# GCP Cloud Build — Keisler Weather Engine CI/CD Pipeline
+# GCP Cloud Build — WeatherGraph CI/CD Pipeline
 #
 # Triggered on: push to any branch (configure in Cloud Build trigger settings)
 # Required GCP APIs: Cloud Build, Artifact Registry

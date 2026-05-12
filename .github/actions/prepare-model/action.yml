@@ -56,7 +56,7 @@ inputs:
   output-path:
     description: Path (relative to repo root) where the .onnx file will be written.
     required: false
-    default: 'models/model.onnx'
+    default: 'models/weather_gnn.onnx'
 
 outputs:
   model-path:

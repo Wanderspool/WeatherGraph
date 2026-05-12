@@ -21,12 +21,12 @@ class DataUnpickler(pickle.Unpickler):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract model weights from a Keisler-2022 pickle checkpoint."
+        description="Extract model weights from a reference-model pickle checkpoint."
     )
     parser.add_argument(
         "--source",
-        default="../keisler-2022",
-        help="Path to the keisler-2022 source directory (default: ../keisler-2022)",
+        default="../reference-model",
+        help="Path to the reference-model source directory (default: ../reference-model)",
     )
     parser.add_argument(
         "--output",
@@ -38,9 +38,10 @@ def main():
     source_dir = os.path.abspath(args.source)
     if not os.path.isdir(source_dir):
         print(f"[ERROR] Source directory not found: {source_dir}")
-        print("  Place the original keisler-2022 repo next to this project, or pass --source <path>")
+        print("  Place the original reference-model repo next to this project, or pass --source <path>")
         raise SystemExit(1)
 
+    # Upstream reference-model layout still stores artifacts under src/keisler_2022/data.
     data_dir = os.path.join(source_dir, "src", "keisler_2022", "data")
     pkl_candidates = [
         f for f in os.listdir(data_dir)

@@ -18,7 +18,7 @@ apt-get update -qq
 apt-get install -y --no-install-recommends git cmake g++ curl python3 python3-pip python3-venv
 
 # ── 2. Clone engine ───────────────────────────────────────────────────────────
-git clone --depth=1 https://github.com/keisler-engine/keisler-engine "$WG_DIR"
+git clone --depth=1 https://github.com/Wanderspool/WeatherGraph "$WG_DIR"
 cd "$WG_DIR"
 
 # ── 3. Python environment ─────────────────────────────────────────────────────
@@ -76,16 +76,24 @@ export LD_LIBRARY_PATH="$WG_DIR/weathergraph/core:$LD_LIBRARY_PATH"
 export PYTHONPATH="$WG_DIR"
 
 "$WG_VENV/bin/python" - <<'PYEOF'
-import xarray as xr
+import json
 from weathergraph import WeatherGraphModel
+from weathergraph.data_sources import load_source
 
 model = WeatherGraphModel(
     model_path="$MODEL_PATH",
     weights_dir="$WG_DIR/data",
 )
-ds = xr.open_dataset("$INPUT_LOCAL")
+source_name = "${data_source}"
+params_raw = "${data_source_params}"
+if source_name == "era5_netcdf":
+  source = load_source("era5_netcdf", path="$INPUT_LOCAL")
+elif params_raw:
+  source = load_source(source_name, **json.loads(params_raw))
+else:
+  source = load_source(source_name)
 model.forecast_export(
-    ds,
+  source,
     steps=${steps},
     output_path="${output_dir}",
     fmt="${output_fmt}",

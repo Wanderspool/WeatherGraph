@@ -50,13 +50,15 @@ taskGroups:
               STEPS="${STEPS:-40}"
               OUTPUT_FMT="${OUTPUT_FMT:-netcdf4}"
               T0="${T0:-}"
+              DATA_SOURCE="${DATA_SOURCE:-era5_netcdf}"
+              DATA_SOURCE_PARAMS="${DATA_SOURCE_PARAMS:-}"
 
               # ── 1. Dependencies ───────────────────────────────────────────
               apt-get update -qq
               apt-get install -y --no-install-recommends git cmake g++ curl python3 python3-pip python3-venv
 
               # ── 2. Clone engine ───────────────────────────────────────────
-              git clone --depth=1 https://github.com/keisler-engine/keisler-engine "$WG_DIR"
+              git clone --depth=1 https://github.com/Wanderspool/WeatherGraph "$WG_DIR"
               cd "$WG_DIR"
 
               # ── 3. Python environment ─────────────────────────────────────
@@ -98,13 +100,21 @@ taskGroups:
                 export PYTHONPATH="$WG_DIR"
 
                 "$WG_VENV/bin/python" -c "
-              import xarray as xr
+              import json, xarray as xr
               from weathergraph import WeatherGraphModel
+              from weathergraph.data_sources import load_source
               model = WeatherGraphModel(model_path='$MODEL_PATH', weights_dir='$WG_DIR/data')
-              ds = xr.open_dataset('$INPUT_LOCAL')
+              _src  = '$DATA_SOURCE' or 'era5_netcdf'
+              _prms = '$DATA_SOURCE_PARAMS'
+              if _src == 'era5_netcdf':
+                  adapter = load_source('era5_netcdf', path='$INPUT_LOCAL')
+              elif _prms:
+                  adapter = load_source(_src, **json.loads(_prms))
+              else:
+                  adapter = load_source(_src)
               kw = dict(steps=int('$STEPS'), output_path='$OUTPUT_DIR', fmt='$OUTPUT_FMT')
               if '$T0': kw['t0'] = '$T0'
-              model.forecast_export(ds, **kw)
+              model.forecast_export(adapter, **kw)
               "
 
                 [ -n "$OUTPUT_BUCKET" ] && gsutil -m cp -r "$OUTPUT_DIR/" "$OUTPUT_BUCKET/"
@@ -124,6 +134,8 @@ taskGroups:
           STEPS:             "40"
           OUTPUT_FMT:        "netcdf4"
           T0:                ""
+          DATA_SOURCE:       "era5_netcdf"
+          DATA_SOURCE_PARAMS: ""
 
     taskCount: 1
     parallelism: 1

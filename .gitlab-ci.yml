@@ -1,5 +1,5 @@
 # ==============================================================================
-# GitLab CI/CD — Keisler Weather Engine
+# GitLab CI/CD — WeatherGraph
 #
 # Pipeline stages:
 #   1. setup   — download ONNX Runtime shared libraries
@@ -9,7 +9,7 @@
 #   5. test    — run the full test suite
 #
 # NOTE on the "extract" stage:
-#   The original keisler-2022 JAX model is NOT stored in this repository.
+#   The original reference 2022 JAX model is NOT stored in this repository.
 #   On CI, the extracted data artifacts (data/weights/, data/graph_data/,
 #   data/means.npy, data/stds.npy) must be available as a GitLab artifact
 #   from a separate, protected "model-export" pipeline, or injected via a
@@ -72,7 +72,8 @@ extract:artifacts:
       else
         echo "[extract] WEATHERGRAPH_DATA_CACHE_URL is not set."
         echo "  Set it to an S3/GCS URL pointing to a tarball of data/ artifacts, or"
-        echo "  run 'make extract WEATHERGRAPH_SOURCE_DIR=/path/to/keisler-2022' locally"
+        echo "  run 'make extract WEATHERGRAPH_SOURCE_DIR=/path/to/reference-model' locally"
+        echo "  or use the backward-compatible alias KEISLER_SOURCE_DIR=/path/to/reference-model"
         echo "  and upload the resulting data/ directory."
         exit 1
       fi

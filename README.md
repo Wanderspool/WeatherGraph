@@ -1,6 +1,6 @@
-# Weather Graph
+# WeatherGraph
 
-[![CI](https://github.com/keisler-engine/keisler-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/keisler-engine/keisler-engine/actions/workflows/ci.yml)
+[![CI](https://github.com/Wanderspool/WeatherGraph/actions/workflows/ci.yml/badge.svg)](https://github.com/Wanderspool/WeatherGraph/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-red.svg)](https://en.cppreference.com/w/cpp/20)
@@ -13,7 +13,7 @@ A high-performance, memory-efficient C++ engine for global weather prediction us
 -   **Low Memory Footprint:** Specifically engineered to run global weather models on `e2.micro` (1GB RAM) nodes.
 -   **In-Graph Normalization:** Pre-processing (Z-score) is baked into the ONNX graph for maximum performance.
 -   **Out-of-Core Processing:** Native integration with `Dask` for processing multi-gigabyte ERA5 archives on limited hardware.
--   **Multi-Model Support:** Schema-driven architecture capable of running Keisler 2022, GraphCast, and other GNN architectures via ONNX.
+-   **Multi-Model Support:** Schema-driven architecture capable of running the reference 2022 model, GraphCast, and other GNN architectures via ONNX.
 
 ---
 
@@ -32,13 +32,13 @@ The engine is split into two distinct layers:
 The project uses `scikit-build-core` for seamless Python/C++ integration.
 
 ```bash
-git clone https://github.com/keisler-engine/keisler-engine
-cd keisler-engine
+git clone https://github.com/Wanderspool/WeatherGraph
+cd WeatherGraph
 pip install .
 ```
 
 ### Download Pre-built Binaries
-Check the [Releases](https://github.com/keisler-engine/keisler-engine/releases) page for pre-compiled wheels for Linux, macOS, and Windows.
+Check the [Releases](https://github.com/Wanderspool/WeatherGraph/releases) page for pre-compiled wheels for Linux, macOS, and Windows.
 
 ---
 
@@ -47,12 +47,12 @@ Check the [Releases](https://github.com/keisler-engine/keisler-engine/releases) 
 ### Basic Prediction
 ```python
 import xarray as xr
-from keisler_engine import GraphWeatherModel
+from weathergraph import WeatherGraphModel
 
 # Initialize engine
-model = GraphWeatherModel(
-    model_path="models/keisler_2022.onnx",
-    weights_dir="data/weights"
+model = WeatherGraphModel(
+    model_path="models/weather_gnn.onnx",
+    weights_dir="data"
 )
 
 # Load ERA5 state
@@ -89,7 +89,7 @@ pytest tests/
 
 ```text
 ├── src/cpp/          # C++ Core (ONNX Runtime, pybind11)
-├── keisler_engine/   # Python Package & xarray wrapper
+├── weathergraph/     # Python package & xarray wrapper
 ├── exporter/         # Scripts for ONNX graph construction
 ├── tests/            # Validation suite
 ├── .github/          # CI/CD Workflows (Binary builds, Testing)

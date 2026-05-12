@@ -1,5 +1,5 @@
 # =============================================================================
-# Keisler Weather Engine — Multi-stage Docker Build
+# WeatherGraph — Multi-stage Docker Build
 #
 # Stages:
 #   builder    — Downloads ONNX Runtime, compiles the C++ pybind11 backend.
@@ -8,10 +8,10 @@
 #
 # Build examples:
 #   # Run tests only:
-#   docker build --target test -t keisler-engine:test .
+#   docker build --target test -t weathergraph:test .
 #
 #   # Build production image:
-#   docker build --target production -t keisler-engine:latest .
+#   docker build --target production -t weathergraph:latest .
 # =============================================================================
 
 # ─── Stage 1: Builder ─────────────────────────────────────────────────────────
@@ -31,23 +31,22 @@ WORKDIR /app
 COPY Makefile CMakeLists.txt pyproject.toml ./
 COPY onnxruntime-sdk/include/ onnxruntime-sdk/include/
 COPY src/ src/
-COPY keisler_engine/ keisler_engine/
+COPY weathergraph/ weathergraph/
 
 # Download the ONNX Runtime shared library (matches `make onnxruntime`)
 RUN make onnxruntime
 
-# CMakeLists.txt hardcodes pybind11 at /root/keisler_engine/venv and uses
-# keisler_engine/venv (relative) for Python include detection.
-RUN python3.11 -m venv /root/keisler_engine/venv \
-    && /root/keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11 \
-    && python3.11 -m venv /app/keisler_engine/venv \
-    && /app/keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
+# CMakeLists.txt expects a pybind11-enabled virtual environment during build.
+RUN python3.11 -m venv /root/weathergraph/venv \
+    && /root/weathergraph/venv/bin/pip install --quiet --upgrade pip pybind11 \
+    && python3.11 -m venv /app/weathergraph/venv \
+    && /app/weathergraph/venv/bin/pip install --quiet --upgrade pip pybind11
 
 # Compile the C++ pybind11 backend
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build --parallel "$(nproc)" \
-    && cp build/keisler_cpp_backend.so keisler_engine/core/ \
-    && cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+    && cp build/weathergraph_backend.so weathergraph/core/ \
+    && cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
 
 # Install Python runtime dependencies
 RUN pip install --no-cache-dir \
@@ -84,7 +83,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy only the compiled backend and Python package from the builder
-COPY --from=builder /app/keisler_engine/ ./keisler_engine/
+COPY --from=builder /app/weathergraph/ ./weathergraph/
 
 # Reinstall Python runtime dependencies (no build tools in this stage)
 RUN pip install --no-cache-dir \
@@ -95,11 +94,11 @@ RUN pip install --no-cache-dir \
     netCDF4
 
 # The ONNX model is large — mount it at runtime from a GCS bucket or volume.
-# Example: docker run -v /path/to/models:/app/models keisler-engine:latest
+# Example: docker run -v /path/to/models:/app/models weathergraph:latest
 VOLUME ["/app/models"]
 
 ENV PYTHONPATH=/app
 
 # Smoke-test: verify the engine is importable on container start
 CMD ["python3", "-c", \
-     "from keisler_engine import GraphWeatherModel; print('Keisler engine ready.')"]
+    "from weathergraph import WeatherGraphModel; print('WeatherGraph ready.')"]

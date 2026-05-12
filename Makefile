@@ -1,21 +1,22 @@
 # ==============================================================================
-# Keisler Weather Engine — Build Pipeline
+# WeatherGraph — Build Pipeline
 #
 # Prerequisites:
 #   - Python 3.10+ with pip
 #   - CMake >= 3.15
 #   - curl
-#   - Original keisler-2022 model directory at $(KEISLER_SOURCE_DIR)
+#   - Original reference-model directory at $(WEATHERGRAPH_SOURCE_DIR)
 #
 # Typical first-time setup:
-#   make all KEISLER_SOURCE_DIR=/path/to/keisler-2022
+#   make all WEATHERGRAPH_SOURCE_DIR=/path/to/reference-model
 #
-# If the source model is already in the default location (../keisler-2022):
+# If the source model is already in the default location (../reference-model):
 #   make all
 # ==============================================================================
 
 PYTHON        ?= python3
-KEISLER_SOURCE_DIR ?= ../keisler-2022
+WEATHERGRAPH_SOURCE_DIR ?= $(if $(KEISLER_SOURCE_DIR),$(KEISLER_SOURCE_DIR),../reference-model)
+KEISLER_SOURCE_DIR ?= $(WEATHERGRAPH_SOURCE_DIR)
 
 # ONNX Runtime release to download
 ONNXRUNTIME_VERSION ?= 1.18.0
@@ -44,23 +45,24 @@ onnxruntime:  ## Download & unpack ONNX Runtime shared library into onnxruntime-
 	@echo "[onnxruntime] Done. Libraries in onnxruntime-sdk/lib/"
 
 # ------------------------------------------------------------------------------
-extract:  ## Extract weights & graph topology from KEISLER_SOURCE_DIR into data/
+extract:  ## Extract weights & graph topology from WEATHERGRAPH_SOURCE_DIR into data/
 # ------------------------------------------------------------------------------
-	@if [ ! -d "$(KEISLER_SOURCE_DIR)" ]; then \
+	@if [ ! -d "$(WEATHERGRAPH_SOURCE_DIR)" ]; then \
 	    echo ""; \
-	    echo "[ERROR] Source model directory not found: $(KEISLER_SOURCE_DIR)"; \
+	    echo "[ERROR] Source model directory not found: $(WEATHERGRAPH_SOURCE_DIR)"; \
 	    echo ""; \
-	    echo "  The original keisler-2022 JAX model must be present to extract weights."; \
+	    echo "  The original reference-model JAX source must be present to extract weights."; \
 	    echo "  Clone it next to this project, or pass the path explicitly:"; \
 	    echo ""; \
-	    echo "    make extract KEISLER_SOURCE_DIR=/path/to/keisler-2022"; \
+	    echo "    make extract WEATHERGRAPH_SOURCE_DIR=/path/to/reference-model"; \
+	    echo "    # Backward-compatible alias: KEISLER_SOURCE_DIR=/path/to/reference-model"; \
 	    echo ""; \
 	    exit 1; \
 	fi
-	@echo "[extract] Extracting weights from $(KEISLER_SOURCE_DIR)..."
-	$(PYTHON) exporter/extract_weights.py --source "$(KEISLER_SOURCE_DIR)" --output data/weights
-	@echo "[extract] Extracting graph topology from $(KEISLER_SOURCE_DIR)..."
-	$(PYTHON) exporter/extract_graphs.py --source "$(KEISLER_SOURCE_DIR)" --output data/graph_data
+	@echo "[extract] Extracting weights from $(WEATHERGRAPH_SOURCE_DIR)..."
+	$(PYTHON) exporter/extract_weights.py --source "$(WEATHERGRAPH_SOURCE_DIR)" --output data/weights
+	@echo "[extract] Extracting graph topology from $(WEATHERGRAPH_SOURCE_DIR)..."
+	$(PYTHON) exporter/extract_graphs.py --source "$(WEATHERGRAPH_SOURCE_DIR)" --output data/graph_data
 	@echo "[extract] Done."
 
 # ------------------------------------------------------------------------------
@@ -102,13 +104,14 @@ clean:  ## Remove all generated files (data artifacts, build dir, .so, .onnx)
 help:  ## Show this help message
 # ------------------------------------------------------------------------------
 	@echo ""
-	@echo "Keisler Weather Engine — Makefile targets"
+	@echo "WeatherGraph — Makefile targets"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | \
 	    awk 'BEGIN {FS = ":.*##"}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Variables:"
-	@echo "  KEISLER_SOURCE_DIR  Path to the keisler-2022 JAX model (default: ../keisler-2022)"
+	@echo "  WEATHERGRAPH_SOURCE_DIR Path to the reference JAX model (default: ../reference-model)"
+	@echo "  KEISLER_SOURCE_DIR      Backward-compatible alias for WEATHERGRAPH_SOURCE_DIR"
 	@echo "  PYTHON              Python interpreter to use          (default: python3)"
 	@echo "  ONNXRUNTIME_VERSION ONNX Runtime version to download   (default: $(ONNXRUNTIME_VERSION))"
 	@echo ""

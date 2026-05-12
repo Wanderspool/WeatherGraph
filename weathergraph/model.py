@@ -33,6 +33,29 @@ class WeatherGraphModel:
         self.level_vars = ['z', 'q', 't', 'u', 'v', 'w']
         self.levels = [50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000]
 
+    # ── Data-source helpers ────────────────────────────────────────────────────
+
+    def _resolve_dataset(self, source):
+        """Accept either an xr.Dataset *or* a DataSourceAdapter instance.
+
+        Parameters
+        ----------
+        source : xr.Dataset or DataSourceAdapter
+            When a :class:`~weathergraph.data_sources.DataSourceAdapter` is
+            passed its ``.load()`` method is called automatically.
+
+        Returns
+        -------
+        xr.Dataset
+        """
+        try:
+            from .data_sources import DataSourceAdapter
+            if isinstance(source, DataSourceAdapter):
+                return source.load()
+        except ImportError:
+            pass
+        return source  # assume xr.Dataset
+
     def _prepare_input(self, ds):
         """
         Extract variables in strict scientific order and flatten to [1, Nodes, 78].
@@ -57,12 +80,23 @@ class WeatherGraphModel:
     def forecast(self, initial_ds, steps=12):
         """
         Perform a 6-hour auto-regressive rollout.
-        Returns a list of numpy arrays representing the atmospheric state at each step.
+
+        Parameters
+        ----------
+        initial_ds : xr.Dataset or DataSourceAdapter
+            Initial atmospheric state. Pass a
+            :class:`~weathergraph.data_sources.DataSourceAdapter` to load
+            data from any supported source automatically.
+        steps : int
+            Number of 6-hour steps.
+
+        Returns a list of numpy arrays representing the atmospheric state
+        at each step.
         """
         results = []
         
         # Initial preparation
-        input_buffer = self._prepare_input(initial_ds)
+        input_buffer = self._prepare_input(self._resolve_dataset(initial_ds))
         
         for i in range(steps):
             # ZERO-COPY call to C++ engine
@@ -70,7 +104,7 @@ class WeatherGraphModel:
             output_buffer = self.engine.predict(input_buffer)
             
             # The output of the GNN is the predicted change (delta) or state at T+6h
-            # In Keisler 2022, it predicts the next state directly.
+            # In the reference 2022 model, it predicts the next state directly.
             # We reuse the output as the next input.
             input_buffer = output_buffer
             
@@ -86,7 +120,8 @@ class WeatherGraphModel:
 
         Parameters
         ----------
-        initial_ds  : xarray.Dataset  — ERA5 initial state.
+        initial_ds  : xr.Dataset or DataSourceAdapter
+                      ERA5 initial state or any supported adapter instance.
         steps       : int             — Number of 6-hour forecast steps.
         output_path : str             — Output directory (netcdf4/zarr) or
                                         file path (.npz).
@@ -114,7 +149,7 @@ class WeatherGraphModel:
         """
         import warnings
 
-        trajectory = self.forecast(initial_ds, steps=steps)
+        trajectory = self.forecast(self._resolve_dataset(initial_ds), steps=steps)
         # Shape: (steps, 1, 71042, 78) — ERA5 1° grid is first 181×360=65160 nodes
         arr = np.stack([t[0] for t in trajectory], axis=0)  # (steps, 71042, 78)
 
@@ -176,8 +211,13 @@ class WeatherGraphModel:
         print(f"[export] {fmt} → {output_path}/  ({n_levels * n_vars} files, {steps} steps)")
 
     def predict_one_step(self, ds):
-        """Single step prediction."""
-        input_data = self._prepare_input(ds)
+        """Single step prediction.
+
+        Parameters
+        ----------
+        ds : xr.Dataset or DataSourceAdapter
+        """
+        input_data = self._prepare_input(self._resolve_dataset(ds))
         # Note: In our current specialized ONNX graph, we pass means/stds as separate inputs 
         # for demonstration, but they could be hardcoded as constants too.
         # Here we pass them if the engine expects them.

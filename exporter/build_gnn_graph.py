@@ -12,7 +12,7 @@ def get_weight_const(weights_dir, layer_name, param_name):
     return np.load(path)
 
 def build_full_graph(weights_dir, graph_dir, out_path):
-    print(f"Building full Keisler ONNX graph at {out_path}...")
+    print(f"Building full WeatherGraph-compatible ONNX graph at {out_path}...")
     
     # 1. Load static graph topology for constants
     enc_senders = np.load(os.path.join(graph_dir, "senders_receivers_encoder/senders.npy")).astype(np.int64)

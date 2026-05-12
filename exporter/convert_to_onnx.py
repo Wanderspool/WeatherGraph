@@ -1,4 +1,3 @@
-import os
 import pickle
 import jax
 import jax.numpy as jnp
@@ -6,11 +5,13 @@ import haiku as hk
 import jraph
 import jax2onnx
 import onnx
+# Upstream reference-model package name remains keisler_2022; keep these imports
+# for compatibility while presenting WeatherGraph as the product surface.
 from keisler_2022.runner import Runner
 from keisler_2022.config import Config
 
 def main():
-    print("Initializing Runner...")
+    print("Initializing reference-model runner...")
     config = Config()
     runner = Runner(verbose=True, config=config)
     
@@ -66,7 +67,7 @@ def main():
         )
         
         print("Saving ONNX model...")
-        onnx.save(onnx_model, "keisler_2022.onnx")
+        onnx.save(onnx_model, "weather_gnn.onnx")
         print("Success!")
     except Exception as e:
         print(f"Failed to convert: {e}")

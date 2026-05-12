@@ -18,7 +18,7 @@
 #            ansible_host: 1.2.3.4
 #            ansible_user: ubuntu
 #
-# 2. Run with defaults (HuggingFace Keisler model, 40 steps, NetCDF output):
+# 2. Run with defaults (reference HuggingFace model, 40 steps, NetCDF output):
 #
 #      ansible-playbook -i hosts.yml site.yml
 #
@@ -41,7 +41,7 @@
 # Variables (all have safe defaults)
 # ────────────────────────────────────────────────────────────────
 #  model_source       "url" | "script"       default: url
-#  model_url          HTTPS .onnx URL        default: HuggingFace Keisler_2022
+#  model_url          HTTPS .onnx URL        default: HuggingFace reference model
 #  model_script       repo-relative script   default: ""
 #  model_script_args  CLI args for script    default: ""
 #  model_script_pip   pip packages needed    default: ""
@@ -57,7 +57,7 @@
   become: false
 
   vars:
-    wg_repo:           "https://github.com/keisler-engine/keisler-engine"
+    wg_repo:           "https://github.com/Wanderspool/WeatherGraph"
     wg_dir:            "/opt/weathergraph"
     wg_model_path:     "{{ wg_dir }}/models/weather_gnn.onnx"
     wg_venv:           "{{ wg_dir }}/.venv"
@@ -73,6 +73,15 @@
     steps:             40
     output_fmt:        "netcdf4"
     t0:                ""
+    # ── Data source ─────────────────────────────────────────────────────
+    # Supported names: era5_netcdf (default), ecmwf_open, cds_era5,
+    #                  gfs, open_meteo, custom
+    data_source:       "era5_netcdf"
+    # JSON dict of adapter kwargs (forwarded to load_source()).
+    # For era5_netcdf leave empty — input_data path is used instead.
+    # Example for cds_era5:  '{"date":"2024-01-01","time":"00:00"}'
+    # Example for custom:    '{"source":"my.nc","variable_map":{"z":"geopotential"}}'
+    data_source_params: ""
 
   tasks:
     # ── 1. System dependencies ────────────────────────────────────────────────
@@ -109,6 +118,11 @@
           - netCDF4
           - zarr
           - onnx
+          # Optional — add the packages your chosen data_source requires:
+          # - ecmwf-opendata   # data_source: ecmwf_open
+          # - cfgrib           # data_source: ecmwf_open or gfs
+          # - cdsapi           # data_source: cds_era5
+          # - herbie-data      # data_source: gfs
 
     # ── 4. ONNX Runtime shared library ───────────────────────────────────────
     - name: Download ONNX Runtime SDK
@@ -180,16 +194,27 @@
           export LD_LIBRARY_PATH={{ wg_dir }}/weathergraph/core:$LD_LIBRARY_PATH
           export PYTHONPATH={{ wg_dir }}
           {{ wg_venv }}/bin/python - <<'EOF'
-          import xarray as xr
+          import json, xarray as xr
           from weathergraph import WeatherGraphModel
+          from weathergraph.data_sources import load_source, CustomAdapter
 
           model = WeatherGraphModel(
               model_path="{{ wg_model_path }}",
               weights_dir="{{ wg_dir }}/data",
           )
-          ds = xr.open_dataset("{{ input_data }}")
+
+          # ── Select data source ────────────────────────────────────────
+          _src  = "{{ data_source }}"
+          _prms = "{{ data_source_params }}"
+          if _src == "era5_netcdf":
+              adapter = load_source("era5_netcdf", path="{{ input_data }}")
+          elif _prms:
+              adapter = load_source(_src, **json.loads(_prms))
+          else:
+              adapter = load_source(_src)
+
           model.forecast_export(
-              ds,
+              adapter,
               steps={{ steps }},
               output_path="{{ output_dir }}",
               fmt="{{ output_fmt }}",

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Keisler Engine — Scientist Playbook Template
+# WeatherGraph — Scientist Playbook Template
 #
 # Copy this file to .github/workflows/validate-my-model.yml in YOUR repository.
 # Uncomment the job that matches how your model is stored and customize the
@@ -28,7 +28,7 @@ jobs:
   # ============================================================================
   validate-from-url:
     name: Validate pre-built ONNX
-    uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+    uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
     with:
       model-source: onnx
       # ── Configure ────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ jobs:
   # ============================================================================
   # validate-pytorch:
   #   name: Validate PyTorch model
-  #   uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+  #   uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
   #   with:
   #     model-source: script
   #     # ── Configure ──────────────────────────────────────────────────────────
@@ -75,15 +75,15 @@ jobs:
   #     # ───────────────────────────────────────────────────────────────────────
 
   # ============================================================================
-  # OPTION C — Build the Keisler ONNX from the repo's extractor scripts
+  # OPTION C — Build the reference ONNX from the repo's extractor scripts
   #
   # Uses exporter/build_gnn_graph.py which reads data/weights/*.npy and
   # data/graph_data/ (both Git LFS objects, checked out automatically).
   # No external model source needed — everything is in the repo.
   # ============================================================================
-  # validate-keisler-built:
-  #   name: Validate built-from-source Keisler ONNX
-  #   uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+  # validate-reference-built:
+  #   name: Validate built-from-source WeatherGraph-compatible ONNX
+  #   uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
   #   with:
   #     model-source: script
   #     model-script: 'exporter/build_gnn_graph.py'
@@ -108,7 +108,7 @@ jobs:
   # ============================================================================
   # validate-tensorflow:
   #   name: Validate TensorFlow model
-  #   uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+  #   uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
   #   with:
   #     model-source: script
   #     # ── Configure ──────────────────────────────────────────────────────────
@@ -116,3 +116,71 @@ jobs:
   #     model-script-args: '--saved-model models/my_saved_model'
   #     model-pip-requirements: 'tensorflow tf2onnx'
   #     # ───────────────────────────────────────────────────────────────────────
+
+# ==============================================================================
+# DATA SOURCE CONFIGURATION
+#
+# All jobs above accept optional data-source inputs that control how the engine
+# reads its initial atmospheric state.  Append these under the `with:` block
+# of any job to override the default (ERA5 local NetCDF).
+#
+# ── Available sources ──────────────────────────────────────────────────────────
+#
+#   data-source: era5_netcdf    (default)  local ERA5 NetCDF file
+#   data-source: ecmwf_open               ECMWF free real-time forecast
+#   data-source: cds_era5                 Copernicus CDS reanalysis (API key)
+#   data-source: gfs                      NOAA GFS via AWS Open Data
+#   data-source: open_meteo               Open-Meteo free API (single point)
+#   data-source: custom                   custom file / variable mapping
+#
+# ── Example: ERA5 from local file (default) ────────────────────────────────────
+#
+#   with:
+#     model-url: '...'
+#     data-source: era5_netcdf
+#     data-source-params: '{"path": "data/era5_archives/init_state.nc"}'
+#
+# ── Example: ECMWF Open Data (free) ───────────────────────────────────────────
+#
+#   with:
+#     model-url: '...'
+#     data-source: ecmwf_open
+#     data-source-params: '{"date": "2024-01-01", "step": 0}'
+#
+# ── Example: Copernicus CDS (requires CDSAPI_KEY secret) ──────────────────────
+#
+#   with:
+#     model-url: '...'
+#     data-source: cds_era5
+#     data-source-params: '{"date": "2024-01-01", "time": "00:00"}'
+#   secrets:
+#     CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+#
+# ── Example: NOAA GFS via AWS Open Data (free) ────────────────────────────────
+#
+#   with:
+#     model-url: '...'
+#     data-source: gfs
+#     data-source-params: '{"date": "2024-01-01 00:00", "fxx": 0}'
+#
+# ── Example: Custom file with renamed variables ────────────────────────────────
+#
+#   with:
+#     model-url: '...'
+#     data-source: custom
+#     data-source-params: |
+#       {
+#         "source": "data/my_nwp_output.nc",
+#         "variable_map": {
+#           "z": "geopotential",
+#           "q": "specific_humidity",
+#           "t": "air_temperature",
+#           "u": "eastward_wind",
+#           "v": "northward_wind",
+#           "w": "vertical_velocity"
+#         },
+#         "level_dim": "pressure",
+#         "lat_dim": "lat",
+#         "lon_dim": "lon"
+#       }
+# ==============================================================================

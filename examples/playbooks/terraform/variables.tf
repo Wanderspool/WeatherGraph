@@ -107,3 +107,34 @@ variable "t0" {
   type        = string
   default     = ""
 }
+
+# ── Data source ────────────────────────────────────────────────────────────────
+variable "data_source" {
+  description = <<-EOT
+    Data-source adapter name.  Supported values:
+      era5_netcdf  (default)  — local ERA5 NetCDF file (see input_data)
+      ecmwf_open              — ECMWF free real-time forecast  (pip: ecmwf-opendata cfgrib)
+      cds_era5                — Copernicus CDS ERA5 reanalysis (pip: cdsapi, requires ~/.cdsapirc)
+      gfs                     — NOAA GFS via AWS S3 Open Data  (pip: herbie-data)
+      open_meteo              — Open-Meteo free API            (single-point, no key)
+      custom                  — custom file / variable mapping (see data_source_params)
+  EOT
+  type    = string
+  default = "era5_netcdf"
+}
+
+variable "data_source_params" {
+  description = <<-EOT
+    JSON string of keyword arguments forwarded to the chosen data-source adapter.
+    Leave empty for era5_netcdf (the input_data path is used automatically).
+
+    Examples:
+      ecmwf_open  : {"date":"2024-01-01","step":0}
+      cds_era5    : {"date":"2024-01-01","time":"00:00"}
+      gfs         : {"date":"2024-01-01 00:00","fxx":0}
+      open_meteo  : {"latitude":51.5,"longitude":-0.1}
+      custom      : {"source":"my.nc","variable_map":{"z":"geopotential","t":"temperature"}}
+  EOT
+  type    = string
+  default = ""
+}
