@@ -31,6 +31,9 @@
 #         model-script: scripts/export_pytorch.py
 #         model-script-args: '--checkpoint weights/my_model.pt'
 #         model-pip-requirements: 'torch==2.3.0'
+#         execution-provider: cuda
+#         cuda-device-id: 0
+#         disable-cpu-ep-fallback: true
 #         disable-cpu-mem-arena: true
 #         disable-mem-pattern: true
 #
@@ -92,6 +95,41 @@ on:
         required: false
         default: 1
         type: number
+      execution-provider:
+        description: Preferred ONNX Runtime execution provider for runtime smoke validation
+        required: false
+        default: 'cpu'
+        type: string
+      execution-device-id:
+        description: Accelerator device ordinal for execution-provider when applicable
+        required: false
+        default: 0
+        type: number
+      execution-memory-limit:
+        description: Provider memory cap in bytes (CUDA/ROCm arena or TensorRT workspace)
+        required: false
+        default: 0
+        type: number
+      execution-provider-options:
+        description: JSON object string forwarded to the chosen execution provider
+        required: false
+        default: ''
+        type: string
+      cuda-device-id:
+        description: Backward-compatible alias for execution-device-id when execution-provider = "cuda"
+        required: false
+        default: 0
+        type: number
+      cuda-gpu-mem-limit:
+        description: Backward-compatible alias for execution-memory-limit when execution-provider = "cuda"
+        required: false
+        default: 0
+        type: number
+      disable-cpu-ep-fallback:
+        description: Fail runtime smoke validation if CUDA placement would fall back to CPU
+        required: false
+        default: false
+        type: boolean
       disable-cpu-mem-arena:
         description: Disable the ONNX Runtime CPU arena allocator during runtime smoke validation
         required: false
@@ -109,6 +147,26 @@ on:
         type: boolean
       tile-bundle-path:
         description: Repo-relative path to a tile-bundle manifest or directory
+        required: false
+        default: ''
+        type: string
+      reference-grid-shape:
+        description: Optional lat,lon grid shape for export/reference-grid paths (for example 1801x3600)
+        required: false
+        default: ''
+        type: string
+      reference-grid-resolution-degrees:
+        description: Optional global regular-grid resolution in degrees (for example 0.1)
+        required: false
+        default: ''
+        type: string
+      tile-state-backend:
+        description: Global tiled-state buffer backend used during runtime smoke validation
+        required: false
+        default: 'ram'
+        type: string
+      tile-state-dir:
+        description: Optional directory for memmap-backed tiled-state buffers
         required: false
         default: ''
         type: string
@@ -162,6 +220,41 @@ on:
         required: false
         default: 1
         type: number
+      execution-provider:
+        description: Preferred ONNX Runtime execution provider for runtime smoke validation
+        required: false
+        default: 'cpu'
+        type: string
+      execution-device-id:
+        description: Accelerator device ordinal for execution-provider when applicable
+        required: false
+        default: 0
+        type: number
+      execution-memory-limit:
+        description: Provider memory cap in bytes (CUDA/ROCm arena or TensorRT workspace)
+        required: false
+        default: 0
+        type: number
+      execution-provider-options:
+        description: JSON object string forwarded to the chosen execution provider
+        required: false
+        default: ''
+        type: string
+      cuda-device-id:
+        description: Backward-compatible alias for execution-device-id when execution-provider = "cuda"
+        required: false
+        default: 0
+        type: number
+      cuda-gpu-mem-limit:
+        description: Backward-compatible alias for execution-memory-limit when execution-provider = "cuda"
+        required: false
+        default: 0
+        type: number
+      disable-cpu-ep-fallback:
+        description: Fail runtime smoke validation if CUDA placement would fall back to CPU
+        required: false
+        default: false
+        type: boolean
       disable-cpu-mem-arena:
         description: Disable the ONNX Runtime CPU arena allocator during runtime smoke validation
         required: false
@@ -179,6 +272,26 @@ on:
         type: boolean
       tile-bundle-path:
         description: Repo-relative path to a tile-bundle manifest or directory
+        required: false
+        default: ''
+        type: string
+      reference-grid-shape:
+        description: Optional lat,lon grid shape for export/reference-grid paths (for example 1801x3600)
+        required: false
+        default: ''
+        type: string
+      reference-grid-resolution-degrees:
+        description: Optional global regular-grid resolution in degrees (for example 0.1)
+        required: false
+        default: ''
+        type: string
+      tile-state-backend:
+        description: Global tiled-state buffer backend used during runtime smoke validation
+        required: false
+        default: 'ram'
+        type: string
+      tile-state-dir:
+        description: Optional directory for memmap-backed tiled-state buffers
         required: false
         default: ''
         type: string
@@ -241,28 +354,65 @@ jobs:
           LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
           WEATHERGRAPH_ONNX_MODEL: ${{ steps.model.outputs.model-path }}
           WEATHERGRAPH_INTRA_OP_THREADS: ${{ inputs.intra-op-threads }}
+          WEATHERGRAPH_EXECUTION_PROVIDER: ${{ inputs.execution-provider }}
+          WEATHERGRAPH_EXECUTION_DEVICE_ID: ${{ inputs.execution-device-id || inputs.cuda-device-id }}
+          WEATHERGRAPH_EXECUTION_MEMORY_LIMIT: ${{ inputs.execution-memory-limit || inputs.cuda-gpu-mem-limit }}
+          WEATHERGRAPH_EXECUTION_PROVIDER_OPTIONS: ${{ inputs.execution-provider-options }}
+          WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK: ${{ inputs.disable-cpu-ep-fallback }}
           WEATHERGRAPH_DISABLE_CPU_MEM_ARENA: ${{ inputs.disable-cpu-mem-arena }}
           WEATHERGRAPH_DISABLE_MEM_PATTERN: ${{ inputs.disable-mem-pattern }}
           WEATHERGRAPH_SPATIAL_TILING: ${{ inputs.spatial-tiling }}
           WEATHERGRAPH_TILE_BUNDLE_PATH: ${{ inputs.tile-bundle-path }}
+          WEATHERGRAPH_REFERENCE_GRID_SHAPE: ${{ inputs.reference-grid-shape }}
+          WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES: ${{ inputs.reference-grid-resolution-degrees }}
+          WEATHERGRAPH_TILE_STATE_BACKEND: ${{ inputs.tile-state-backend }}
+          WEATHERGRAPH_TILE_STATE_DIR: ${{ inputs.tile-state-dir }}
         run: |
           python - <<'PY'
           import os
           from weathergraph import WeatherGraphModel
 
+          def env_optional(name):
+              value = os.environ.get(name, "").strip()
+              return value or None
+
+          def env_int(name):
+              value = env_optional(name)
+              return int(value) if value is not None else 0
+
+          def env_float(name):
+              value = env_optional(name)
+              return float(value) if value is not None else None
+
           kwargs = dict(
               model_path=os.environ["WEATHERGRAPH_ONNX_MODEL"],
               weights_dir="data",
               intra_op_threads=int(os.environ["WEATHERGRAPH_INTRA_OP_THREADS"]),
+              execution_provider=os.environ["WEATHERGRAPH_EXECUTION_PROVIDER"],
+              execution_device_id=env_int("WEATHERGRAPH_EXECUTION_DEVICE_ID"),
+              execution_memory_limit=env_int("WEATHERGRAPH_EXECUTION_MEMORY_LIMIT"),
+              execution_provider_options=env_optional("WEATHERGRAPH_EXECUTION_PROVIDER_OPTIONS"),
+              disable_cpu_ep_fallback=os.environ["WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK"].lower() == "true",
               disable_cpu_mem_arena=os.environ["WEATHERGRAPH_DISABLE_CPU_MEM_ARENA"].lower() == "true",
               disable_mem_pattern=os.environ["WEATHERGRAPH_DISABLE_MEM_PATTERN"].lower() == "true",
+              reference_grid_shape=env_optional("WEATHERGRAPH_REFERENCE_GRID_SHAPE"),
+              reference_grid_resolution_degrees=env_float("WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES"),
               spatial_tiling=os.environ["WEATHERGRAPH_SPATIAL_TILING"].lower() == "true",
-              tile_bundle_path=os.environ["WEATHERGRAPH_TILE_BUNDLE_PATH"] or None,
+              tile_bundle_path=env_optional("WEATHERGRAPH_TILE_BUNDLE_PATH"),
+              tile_state_backend=os.environ["WEATHERGRAPH_TILE_STATE_BACKEND"],
+              tile_state_dir=env_optional("WEATHERGRAPH_TILE_STATE_DIR"),
           )
           model = WeatherGraphModel(**kwargs)
           print("[runtime] output_shape=", model.output_shape)
+          print("[runtime] execution_provider=", model.execution_provider)
+          print("[runtime] cpu_ep_fallback_enabled=", model.cpu_ep_fallback_enabled)
           print("[runtime] cpu_mem_arena_enabled=", model.cpu_mem_arena_enabled)
           print("[runtime] mem_pattern_enabled=", model.mem_pattern_enabled)
+          print("[runtime] reference_grid_shape=", model.reference_grid_shape)
+          if model.spatial_tiling:
+              report = model.estimate_tiled_memory_report()
+              print("[runtime] tile_state_backend=", model.tile_state_backend)
+              print("[runtime] max_tile_working_set_bytes=", report["max_tile_working_set_bytes"])
           PY
 
       # ── Run test suite ───────────────────────────────────────────────────────
@@ -272,10 +422,19 @@ jobs:
           LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
           WEATHERGRAPH_ONNX_MODEL: ${{ steps.model.outputs.model-path }}
           WEATHERGRAPH_INTRA_OP_THREADS: ${{ inputs.intra-op-threads }}
+          WEATHERGRAPH_EXECUTION_PROVIDER: ${{ inputs.execution-provider }}
+          WEATHERGRAPH_EXECUTION_DEVICE_ID: ${{ inputs.execution-device-id || inputs.cuda-device-id }}
+          WEATHERGRAPH_EXECUTION_MEMORY_LIMIT: ${{ inputs.execution-memory-limit || inputs.cuda-gpu-mem-limit }}
+          WEATHERGRAPH_EXECUTION_PROVIDER_OPTIONS: ${{ inputs.execution-provider-options }}
+          WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK: ${{ inputs.disable-cpu-ep-fallback }}
           WEATHERGRAPH_DISABLE_CPU_MEM_ARENA: ${{ inputs.disable-cpu-mem-arena }}
           WEATHERGRAPH_DISABLE_MEM_PATTERN: ${{ inputs.disable-mem-pattern }}
           WEATHERGRAPH_SPATIAL_TILING: ${{ inputs.spatial-tiling }}
           WEATHERGRAPH_TILE_BUNDLE_PATH: ${{ inputs.tile-bundle-path }}
+          WEATHERGRAPH_REFERENCE_GRID_SHAPE: ${{ inputs.reference-grid-shape }}
+          WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES: ${{ inputs.reference-grid-resolution-degrees }}
+          WEATHERGRAPH_TILE_STATE_BACKEND: ${{ inputs.tile-state-backend }}
+          WEATHERGRAPH_TILE_STATE_DIR: ${{ inputs.tile-state-dir }}
         run: |
           pytest \
             tests/test_cpp_backend.py \

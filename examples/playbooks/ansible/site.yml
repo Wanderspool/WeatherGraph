@@ -55,10 +55,19 @@
 #  output_fmt         netcdf4 | zarr | npz   default: netcdf4
 #  t0                 ISO-8601 start time    default: ""
 #  intra_op_threads   ORT intra-op threads   default: 1
+#  execution_provider cpu | cuda | tensorrt | rocm | openvino default: cpu
+#  execution_device_id accelerator ordinal   default: 0
+#  execution_memory_limit provider memory cap default: 0 (ORT default)
+#  execution_provider_options JSON object string default: ""
+#  disable_cpu_ep_fallback strict accelerator placement default: false
 #  disable_cpu_mem_arena  low-memory ORT mode default: false
 #  disable_mem_pattern    low-memory ORT mode default: false
 #  spatial_tiling         exact tile-bundle mode default: false
 #  tile_bundle_path       manifest/dir path       default: ""
+#  reference_grid_shape   LATxLON export grid     default: ""
+#  reference_grid_resolution_degrees regular global grid resolution default: ""
+#  tile_state_backend     ram | memmap            default: ram
+#  tile_state_dir         memmap workspace dir    default: ""
 # ==============================================================================
 
 - name: WeatherGraph — Weather Forecast Pipeline
@@ -83,10 +92,19 @@
     output_fmt:        "netcdf4"
     t0:                ""
     intra_op_threads:  1
+    execution_provider: "cpu"
+    execution_device_id: 0
+    execution_memory_limit: 0
+    execution_provider_options: ""
+    disable_cpu_ep_fallback: false
     disable_cpu_mem_arena: false
     disable_mem_pattern: false
     spatial_tiling: false
     tile_bundle_path: ""
+    reference_grid_shape: ""
+    reference_grid_resolution_degrees: ""
+    tile_state_backend: "ram"
+    tile_state_dir: ""
     # ── Data source ─────────────────────────────────────────────────────
     # Supported names: era5_netcdf (default), ecmwf_open, cds_era5,
     #                  gfs, open_meteo, custom
@@ -165,7 +183,7 @@
         cmd: |
           mkdir -p weathergraph/core
           cp build/weathergraph_backend.so weathergraph/core/
-          cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+          cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
         chdir: "{{ wg_dir }}"
 
     # ── 6. Acquire model ──────────────────────────────────────────────────────
@@ -207,39 +225,49 @@
         cmd: |
           export LD_LIBRARY_PATH={{ wg_dir }}/weathergraph/core:$LD_LIBRARY_PATH
           export PYTHONPATH={{ wg_dir }}
-          {{ wg_venv }}/bin/python - <<'EOF'
-          import json, xarray as xr
-          from weathergraph import WeatherGraphModel
-          from weathergraph.data_sources import load_source, CustomAdapter
-
-          model = WeatherGraphModel(
-              model_path="{{ wg_model_path }}",
-              weights_dir="{{ wg_dir }}/data",
-              intra_op_threads={{ intra_op_threads }},
-              disable_cpu_mem_arena={{ disable_cpu_mem_arena | lower }},
-              disable_mem_pattern={{ disable_mem_pattern | lower }},
-              spatial_tiling={{ spatial_tiling | lower }},
-              tile_bundle_path={{ tile_bundle_path | tojson }},
+          CLI_ARGS=(
+            -m weathergraph.cli forecast
+            --model-path "{{ wg_model_path }}"
+            --weights-dir "{{ wg_dir }}/data"
+            --intra-op-threads "{{ intra_op_threads }}"
+            --execution-provider "{{ execution_provider }}"
+            --execution-device-id "{{ execution_device_id }}"
+            --execution-memory-limit "{{ execution_memory_limit }}"
+            --data-source "{{ data_source }}"
+            --steps "{{ steps }}"
+            --output-format "{{ output_fmt }}"
+            --output-path "{{ output_dir }}"
+            --tile-state-backend "{{ tile_state_backend }}"
           )
-
-          # ── Select data source ────────────────────────────────────────
-          _src  = "{{ data_source }}"
-          _prms = "{{ data_source_params }}"
-          if _src == "era5_netcdf":
-              adapter = load_source("era5_netcdf", path="{{ input_data }}")
-          elif _prms:
-              adapter = load_source(_src, **json.loads(_prms))
-          else:
-              adapter = load_source(_src)
-
-          model.forecast_export(
-              adapter,
-              steps={{ steps }},
-              output_path="{{ output_dir }}",
-              fmt="{{ output_fmt }}",
-              {% if t0 != "" %}t0="{{ t0 }}",{% endif %}
-          )
-          EOF
+          [[ "{{ disable_cpu_ep_fallback | lower }}" == "true" ]] && CLI_ARGS+=(--disable-cpu-ep-fallback)
+          [[ "{{ disable_cpu_mem_arena | lower }}" == "true" ]] && CLI_ARGS+=(--disable-cpu-mem-arena)
+          [[ "{{ disable_mem_pattern | lower }}" == "true" ]] && CLI_ARGS+=(--disable-mem-pattern)
+          [[ "{{ spatial_tiling | lower }}" == "true" ]] && CLI_ARGS+=(--spatial-tiling)
+          {% if input_data != "" and data_source == "era5_netcdf" %}
+          CLI_ARGS+=(--input-path "{{ input_data }}")
+          {% endif %}
+          {% if execution_provider_options != "" %}
+          CLI_ARGS+=(--execution-provider-options {{ execution_provider_options | tojson }})
+          {% endif %}
+          {% if tile_bundle_path != "" %}
+          CLI_ARGS+=(--tile-bundle-path "{{ tile_bundle_path }}")
+          {% endif %}
+          {% if reference_grid_shape != "" %}
+          CLI_ARGS+=(--reference-grid-shape "{{ reference_grid_shape }}")
+          {% endif %}
+          {% if reference_grid_resolution_degrees != "" %}
+          CLI_ARGS+=(--reference-grid-resolution-degrees "{{ reference_grid_resolution_degrees }}")
+          {% endif %}
+          {% if tile_state_dir != "" %}
+          CLI_ARGS+=(--tile-state-dir "{{ tile_state_dir }}")
+          {% endif %}
+          {% if data_source_params != "" and data_source != "era5_netcdf" %}
+          CLI_ARGS+=(--source-kwargs {{ data_source_params | tojson }})
+          {% endif %}
+          {% if t0 != "" %}
+          CLI_ARGS+=(--start-time "{{ t0 }}")
+          {% endif %}
+          {{ wg_venv }}/bin/python "${CLI_ARGS[@]}"
         chdir: "{{ wg_dir }}"
 
     - name: Show output location

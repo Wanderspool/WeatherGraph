@@ -18,7 +18,7 @@ outputs:
   core-dir:
     description: >
       Absolute path to weathergraph/core/ — add to LD_LIBRARY_PATH so
-      libonnxruntime.so is found at runtime.
+      libonnxruntime and any provider shared libraries are found at runtime.
     value: ${{ steps.build.outputs.core-dir }}
 
 runs:
@@ -66,6 +66,6 @@ runs:
 
         mkdir -p weathergraph/core
         cp build/weathergraph_backend.so weathergraph/core/
-        cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+        cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
         echo "core-dir=$(pwd)/weathergraph/core" >> "$GITHUB_OUTPUT"

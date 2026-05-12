@@ -37,7 +37,7 @@ The main runtime path starts in Python and crosses into C++ only for inference.
 
 Main file: `weathergraph/__init__.py`
 
-The package exports `WeatherGraphModel` plus the data-source adapter API. This is the stable import surface for users and for example pipelines.
+The package exports `WeatherGraphModel` plus the data-source adapter API. Installing the package also provides the supported `weathergraph` CLI for source discovery, runtime inspection, and forecast execution.
 
 ### Step 2. Python model orchestration
 
@@ -58,10 +58,19 @@ Important constructor arguments:
 - `model_path`
 - `weights_dir`
 - `intra_op_threads`
+- `execution_provider`
+- `execution_device_id`
+- `execution_memory_limit`
+- `execution_provider_options`
+- `disable_cpu_ep_fallback`
 - `disable_cpu_mem_arena`
 - `disable_mem_pattern`
 - `spatial_tiling`
 - `tile_bundle_path`
+- `reference_grid_shape`
+- `reference_grid_resolution_degrees`
+- `tile_state_backend`
+- `tile_state_dir`
 
 ### Step 3. Dataset resolution
 
@@ -114,6 +123,8 @@ The backend:
 
 - creates an ONNX Runtime session
 - configures session options
+- optionally adds one of the supported accelerator execution providers
+- optionally disables CPU execution-provider fallback for strict accelerator placement
 - optionally disables the CPU arena allocator
 - optionally disables memory-pattern reuse
 - discovers input and output names from the ONNX graph
@@ -167,12 +178,11 @@ Formats:
 
 Behavior:
 
-- assumes the current reference grid mapping
-- reshapes the reference-node subset into `(181, 360, 78)`
+- uses configured reference-grid metadata when reshaping the reference-node subset
 - writes one file per variable and pressure level
 - streams step-by-step to disk to reduce peak memory usage
 
-This part of the architecture is intentionally still tied to the current reference artifact rather than a generic mesh metadata contract.
+This part of the architecture still requires reference-grid metadata rather than a fully generic mesh-to-grid export contract.
 
 ## Exact Tiling Architecture
 

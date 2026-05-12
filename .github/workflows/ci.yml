@@ -74,7 +74,7 @@ jobs:
           cmake --build build --parallel $(nproc)
           mkdir -p weathergraph/core
           cp build/weathergraph_backend.so weathergraph/core/
-          cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+          cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
       - name: Run unit tests
         run: |
@@ -116,7 +116,7 @@ jobs:
           cmake --build build --parallel $(nproc)
           mkdir -p weathergraph/core
           cp build/weathergraph_backend.so weathergraph/core/
-          cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+          cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
       - name: Build wheel
         run: |

@@ -114,6 +114,40 @@ variable "intra_op_threads" {
   default     = 1
 }
 
+variable "execution_provider" {
+  description = "Preferred ONNX Runtime execution provider: \"cpu\" | \"cuda\" | \"tensorrt\" | \"rocm\" | \"openvino\""
+  type        = string
+  default     = "cpu"
+  validation {
+    condition     = contains(["cpu", "cuda", "tensorrt", "rocm", "openvino"], var.execution_provider)
+    error_message = "execution_provider must be one of \"cpu\", \"cuda\", \"tensorrt\", \"rocm\", or \"openvino\"."
+  }
+}
+
+variable "execution_device_id" {
+  description = "Accelerator device ordinal when execution_provider is not \"cpu\""
+  type        = number
+  default     = 0
+}
+
+variable "execution_memory_limit" {
+  description = "Provider memory cap in bytes (0 keeps ONNX Runtime default)"
+  type        = number
+  default     = 0
+}
+
+variable "execution_provider_options" {
+  description = "JSON object string forwarded to the selected execution provider"
+  type        = string
+  default     = ""
+}
+
+variable "disable_cpu_ep_fallback" {
+  description = "Fail session creation if accelerator placement would fall back to CPU"
+  type        = bool
+  default     = false
+}
+
 variable "disable_cpu_mem_arena" {
   description = "Disable the ONNX Runtime CPU arena allocator to reduce reserved RSS"
   type        = bool
@@ -134,6 +168,34 @@ variable "spatial_tiling" {
 
 variable "tile_bundle_path" {
   description = "Path to a tile-bundle manifest or directory with exact graph partition metadata"
+  type        = string
+  default     = ""
+}
+
+variable "reference_grid_shape" {
+  description = "Optional export/reference-grid shape as LATxLON"
+  type        = string
+  default     = ""
+}
+
+variable "reference_grid_resolution_degrees" {
+  description = "Optional regular global reference-grid resolution in degrees"
+  type        = string
+  default     = ""
+}
+
+variable "tile_state_backend" {
+  description = "Backend used for global tiled-state buffers: \"ram\" | \"memmap\""
+  type        = string
+  default     = "ram"
+  validation {
+    condition     = contains(["ram", "memmap"], var.tile_state_backend)
+    error_message = "tile_state_backend must be \"ram\" or \"memmap\"."
+  }
+}
+
+variable "tile_state_dir" {
+  description = "Optional directory for memmap-backed tiled-state buffers"
   type        = string
   default     = ""
 }

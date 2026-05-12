@@ -35,7 +35,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_CMAKE"
 cmake --build build --parallel "$(nproc)"
 mkdir -p weathergraph/core
 cp build/weathergraph_backend.so weathergraph/core/
-cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
 # ── 6. Acquire model ──────────────────────────────────────────────────────────
 mkdir -p "$(dirname "$MODEL_PATH")"
@@ -75,37 +75,58 @@ fi
 export LD_LIBRARY_PATH="$WG_DIR/weathergraph/core:$LD_LIBRARY_PATH"
 export PYTHONPATH="$WG_DIR"
 
-"$WG_VENV/bin/python" - <<'PYEOF'
-import json
-from weathergraph import WeatherGraphModel
-from weathergraph.data_sources import load_source
-
-model = WeatherGraphModel(
-    model_path="$MODEL_PATH",
-    weights_dir="$WG_DIR/data",
-  intra_op_threads=${intra_op_threads},
-  disable_cpu_mem_arena=${disable_cpu_mem_arena},
-  disable_mem_pattern=${disable_mem_pattern},
-  spatial_tiling=${spatial_tiling},
-  tile_bundle_path=${jsonencode(tile_bundle_path)},
+CLI_ARGS=(
+  -m weathergraph.cli forecast
+  --model-path "$MODEL_PATH"
+  --weights-dir "$WG_DIR/data"
+  --intra-op-threads "${intra_op_threads}"
+  --execution-provider ${jsonencode(execution_provider)}
+  --execution-device-id "${execution_device_id}"
+  --execution-memory-limit "${execution_memory_limit}"
+  --data-source ${jsonencode(data_source)}
+  --steps "${steps}"
+  --output-format ${jsonencode(output_fmt)}
+  --output-path ${jsonencode(output_dir)}
+  --tile-state-backend ${jsonencode(tile_state_backend)}
 )
-source_name = "${data_source}"
-params_raw = "${data_source_params}"
-if source_name == "era5_netcdf":
-  source = load_source("era5_netcdf", path="$INPUT_LOCAL")
-elif params_raw:
-  source = load_source(source_name, **json.loads(params_raw))
-else:
-  source = load_source(source_name)
-model.forecast_export(
-  source,
-    steps=${steps},
-    output_path="${output_dir}",
-    fmt="${output_fmt}",
-%{ if t0 != "" }    t0="${t0}",
+%{ if disable_cpu_ep_fallback }
+CLI_ARGS+=(--disable-cpu-ep-fallback)
 %{ endif }
-)
-PYEOF
+%{ if disable_cpu_mem_arena }
+CLI_ARGS+=(--disable-cpu-mem-arena)
+%{ endif }
+%{ if disable_mem_pattern }
+CLI_ARGS+=(--disable-mem-pattern)
+%{ endif }
+%{ if spatial_tiling }
+CLI_ARGS+=(--spatial-tiling)
+%{ endif }
+%{ if data_source == "era5_netcdf" }
+CLI_ARGS+=(--input-path "$INPUT_LOCAL")
+%{ endif }
+%{ if execution_provider_options != "" }
+CLI_ARGS+=(--execution-provider-options ${jsonencode(execution_provider_options)})
+%{ endif }
+%{ if tile_bundle_path != "" }
+CLI_ARGS+=(--tile-bundle-path ${jsonencode(tile_bundle_path)})
+%{ endif }
+%{ if reference_grid_shape != "" }
+CLI_ARGS+=(--reference-grid-shape ${jsonencode(reference_grid_shape)})
+%{ endif }
+%{ if reference_grid_resolution_degrees != "" }
+CLI_ARGS+=(--reference-grid-resolution-degrees ${jsonencode(reference_grid_resolution_degrees)})
+%{ endif }
+%{ if tile_state_dir != "" }
+CLI_ARGS+=(--tile-state-dir ${jsonencode(tile_state_dir)})
+%{ endif }
+%{ if data_source_params != "" && data_source != "era5_netcdf" }
+CLI_ARGS+=(--source-kwargs ${jsonencode(data_source_params)})
+%{ endif }
+%{ if t0 != "" }
+CLI_ARGS+=(--start-time ${jsonencode(t0)})
+%{ endif }
+
+"$WG_VENV/bin/python" "${CLI_ARGS[@]}"
 
 # Upload results if a bucket is given
 %{ if output_bucket != "" }

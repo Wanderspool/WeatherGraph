@@ -27,7 +27,7 @@ def create_dummy_onnx(path, output_shape=(1, 71042, 78)):
         steps = helper.make_tensor('steps', TensorProto.INT64, [3], [1, 1, 1])
         nodes = [helper.make_node('Slice', ['input', 'starts', 'ends', 'axes', 'steps'], ['output'])]
         initializers = [starts, ends, axes, steps]
-    op = helper.make_opsetid("ai.onnx", 14)
+    op = helper.make_opsetid("", 14)
     graph_def = helper.make_graph(nodes, 'dummy', [input_tensor], [output_tensor], initializer=initializers)
     model_def = helper.make_model(graph_def, producer_name='dummy', opset_imports=[op])
     model_def.ir_version = 8
@@ -82,6 +82,32 @@ def test_engine_defaults_keep_ort_allocators_enabled():
 
         assert engine.cpu_mem_arena_enabled() is True
         assert engine.mem_pattern_enabled() is True
+        assert engine.execution_provider() == "cpu"
+        assert engine.cpu_ep_fallback_enabled() is True
+
+def test_engine_rejects_unknown_execution_provider():
+    """Verifies the backend rejects unsupported execution-provider names."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = os.path.join(tmpdir, "dummy_model.onnx")
+        create_dummy_onnx(model_path)
+
+        with pytest.raises(ValueError, match="execution_provider must be one of"):
+            weathergraph_backend.WeatherGraphEngine(
+                model_path,
+                execution_provider="metal",
+            )
+
+def test_engine_rejects_cpu_fallback_disable_without_accelerator():
+    """Verifies the backend validates accelerator-only fallback controls before session creation."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = os.path.join(tmpdir, "dummy_model.onnx")
+        create_dummy_onnx(model_path)
+
+        with pytest.raises(ValueError, match="non-CPU execution_provider"):
+            weathergraph_backend.WeatherGraphEngine(
+                model_path,
+                disable_cpu_ep_fallback=True,
+            )
 
 def test_engine_can_disable_ort_arena_and_mem_pattern():
     """Verifies the backend exposes optional low-memory ORT session knobs."""
@@ -140,11 +166,22 @@ def test_model_prepare_input_is_contiguous_and_forwards_threads(monkeypatch):
                      model_path,
                      intra_op_threads=1,
                      disable_cpu_mem_arena=False,
-                     disable_mem_pattern=False):
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
             self.model_path = model_path
             self.intra_op_threads = intra_op_threads
             self.disable_cpu_mem_arena = disable_cpu_mem_arena
             self.disable_mem_pattern = disable_mem_pattern
+            self.execution_provider_name = execution_provider
+            self.execution_device_id = execution_device_id
+            self.execution_memory_limit = execution_memory_limit
+            self.disable_cpu_ep_fallback = disable_cpu_ep_fallback
+            self.execution_provider_options = execution_provider_options or {}
             self._output_shape = (1, 4, 78)
 
         def output_shape(self):
@@ -155,6 +192,12 @@ def test_model_prepare_input_is_contiguous_and_forwards_threads(monkeypatch):
 
         def mem_pattern_enabled(self):
             return not self.disable_mem_pattern
+
+        def execution_provider(self):
+            return self.execution_provider_name
+
+        def cpu_ep_fallback_enabled(self):
+            return not self.disable_cpu_ep_fallback
 
         def predict(self, input_data):
             return input_data
@@ -202,6 +245,177 @@ def test_model_prepare_input_is_contiguous_and_forwards_threads(monkeypatch):
         assert prepared.dtype == np.float32
         assert prepared.flags.c_contiguous
 
+def test_model_forwards_multi_provider_runtime_configuration(monkeypatch):
+    """Verifies the Python wrapper forwards multi-provider execution configuration to the backend."""
+    import weathergraph.model as model_module
+
+    class ProviderRecordingEngine:
+        def __init__(self,
+                     model_path,
+                     intra_op_threads=1,
+                     disable_cpu_mem_arena=False,
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
+            self.model_path = model_path
+            self.intra_op_threads = intra_op_threads
+            self.disable_cpu_mem_arena = disable_cpu_mem_arena
+            self.disable_mem_pattern = disable_mem_pattern
+            self.execution_provider_name = execution_provider
+            self.execution_device_id = execution_device_id
+            self.execution_memory_limit = execution_memory_limit
+            self.disable_cpu_ep_fallback = disable_cpu_ep_fallback
+            self.execution_provider_options = execution_provider_options or {}
+
+        def output_shape(self):
+            return (1, 4, 78)
+
+        def cpu_mem_arena_enabled(self):
+            return not self.disable_cpu_mem_arena
+
+        def mem_pattern_enabled(self):
+            return not self.disable_mem_pattern
+
+        def execution_provider(self):
+            return self.execution_provider_name
+
+        def cpu_ep_fallback_enabled(self):
+            return not self.disable_cpu_ep_fallback
+
+        def predict(self, input_data):
+            return input_data
+
+    monkeypatch.setattr(
+        model_module,
+        "weathergraph_backend",
+        types.SimpleNamespace(WeatherGraphEngine=ProviderRecordingEngine),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        model = WeatherGraphModel(
+            "dummy.onnx",
+            weights_dir=tmpdir,
+            execution_provider="amd",
+            execution_device_id=2,
+            execution_memory_limit=1024,
+            execution_provider_options={"tunable_op_enable": True, "arena_extend_strategy": 1},
+            disable_cpu_ep_fallback=True,
+        )
+
+        assert model.engine.execution_provider_name == "rocm"
+        assert model.engine.execution_device_id == 2
+        assert model.engine.execution_memory_limit == 1024
+        assert model.engine.disable_cpu_ep_fallback is True
+        assert model.engine.execution_provider_options == {
+            "tunable_op_enable": "true",
+            "arena_extend_strategy": "1",
+        }
+        assert model.execution_provider == "rocm"
+        assert model.cpu_ep_fallback_enabled is False
+        assert model.runtime_options["execution_provider"] == "rocm"
+        assert model.runtime_options["execution_device_id"] == 2
+        assert model.runtime_options["execution_memory_limit"] == 1024
+        assert model.runtime_options["execution_provider_options"] == {
+            "tunable_op_enable": "true",
+            "arena_extend_strategy": "1",
+        }
+        assert model.runtime_options["disable_cpu_ep_fallback"] is True
+        assert model.runtime_options["cpu_ep_fallback_enabled"] is False
+
+def test_model_accepts_legacy_cuda_runtime_aliases(monkeypatch):
+    """Verifies wrapper-level aliases keep existing CUDA-oriented keyword names working."""
+    import weathergraph.model as model_module
+
+    class AliasRecordingEngine:
+        def __init__(self,
+                     model_path,
+                     intra_op_threads=1,
+                     disable_cpu_mem_arena=False,
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
+            self.execution_provider_name = execution_provider
+            self.execution_device_id = execution_device_id
+            self.execution_memory_limit = execution_memory_limit
+            self.execution_provider_options = execution_provider_options or {}
+
+        def output_shape(self):
+            return (1, 4, 78)
+
+        def cpu_mem_arena_enabled(self):
+            return True
+
+        def mem_pattern_enabled(self):
+            return True
+
+        def execution_provider(self):
+            return self.execution_provider_name
+
+        def cpu_ep_fallback_enabled(self):
+            return True
+
+        def predict(self, input_data):
+            return input_data
+
+    monkeypatch.setattr(
+        model_module,
+        "weathergraph_backend",
+        types.SimpleNamespace(WeatherGraphEngine=AliasRecordingEngine),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        model = WeatherGraphModel(
+            "dummy.onnx",
+            weights_dir=tmpdir,
+            execution_provider="nvidia",
+            cuda_device_id=3,
+            cuda_gpu_mem_limit=2048,
+        )
+
+        assert model.execution_provider == "cuda"
+        assert model.engine.execution_device_id == 3
+        assert model.engine.execution_memory_limit == 2048
+
+def test_model_rejects_cpu_fallback_disable_without_accelerator():
+    """Verifies wrapper-level validation rejects impossible CPU-fallback settings."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        with pytest.raises(ValueError, match="non-CPU execution_provider"):
+            WeatherGraphModel(
+                "dummy.onnx",
+                weights_dir=tmpdir,
+                disable_cpu_ep_fallback=True,
+            )
+
+def test_model_rejects_provider_options_for_cpu():
+    """Verifies wrapper-level validation rejects provider-specific options on the CPU path."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        with pytest.raises(ValueError, match="execution_provider_options require a non-CPU"):
+            WeatherGraphModel(
+                "dummy.onnx",
+                weights_dir=tmpdir,
+                execution_provider_options={"device_id": 1},
+            )
+
 def test_model_iter_forecast_streams_steps(monkeypatch):
     """Verifies iter_forecast yields each step without requiring full trajectory materialization."""
     import weathergraph.model as model_module
@@ -211,7 +425,13 @@ def test_model_iter_forecast_streams_steps(monkeypatch):
                      model_path,
                      intra_op_threads=1,
                      disable_cpu_mem_arena=False,
-                     disable_mem_pattern=False):
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
             self.model_path = model_path
             self.intra_op_threads = intra_op_threads
             self.disable_cpu_mem_arena = disable_cpu_mem_arena
@@ -282,7 +502,13 @@ def test_model_runs_exact_tiled_prediction_from_bundle(monkeypatch):
                      model_path,
                      intra_op_threads=1,
                      disable_cpu_mem_arena=False,
-                     disable_mem_pattern=False):
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
             self.model_path = model_path
             self.intra_op_threads = intra_op_threads
             self.disable_cpu_mem_arena = disable_cpu_mem_arena
@@ -363,6 +589,232 @@ def test_model_runs_exact_tiled_prediction_from_bundle(monkeypatch):
         assert model.cpu_mem_arena_enabled is False
         assert model.mem_pattern_enabled is False
 
+def test_model_supports_memmap_tiled_state_and_budget_report(monkeypatch):
+    """Verifies tiled runs can materialize large global states via memmap and expose tile budget estimates."""
+    import weathergraph.model as model_module
+
+    class TileEngine:
+        def __init__(self,
+                     model_path,
+                     intra_op_threads=1,
+                     disable_cpu_mem_arena=False,
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
+            self.model_path = model_path
+
+        def output_shape(self):
+            return (1, 2, 78)
+
+        def cpu_mem_arena_enabled(self):
+            return True
+
+        def mem_pattern_enabled(self):
+            return True
+
+        def execution_provider(self):
+            return "cpu"
+
+        def cpu_ep_fallback_enabled(self):
+            return True
+
+        def predict(self, input_data):
+            if os.path.basename(self.model_path) == "tile_0.onnx":
+                return np.ascontiguousarray(input_data[:, :2, :])
+            return np.ascontiguousarray(input_data[:, 1:, :])
+
+    monkeypatch.setattr(
+        model_module,
+        "weathergraph_backend",
+        types.SimpleNamespace(WeatherGraphEngine=TileEngine),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        bundle_dir = os.path.join(tmpdir, "tile_bundle")
+        os.makedirs(bundle_dir, exist_ok=True)
+        np.save(os.path.join(bundle_dir, "tile_0_input.npy"), np.array([0, 1, 2], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_0_output.npy"), np.array([0, 1], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_1_input.npy"), np.array([1, 2, 3], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_1_output.npy"), np.array([2, 3], dtype=np.int64))
+        with open(os.path.join(bundle_dir, "manifest.json"), "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "global_input_shape": [1, 4, 78],
+                    "global_output_shape": [1, 4, 78],
+                    "reference_grid_shape": [2, 2],
+                    "reference_grid_resolution_degrees": 90.0,
+                    "tiles": [
+                        {
+                            "id": "tile_0",
+                            "model_path": "tile_0.onnx",
+                            "input_indices_path": "tile_0_input.npy",
+                            "output_indices_path": "tile_0_output.npy",
+                        },
+                        {
+                            "id": "tile_1",
+                            "model_path": "tile_1.onnx",
+                            "input_indices_path": "tile_1_input.npy",
+                            "output_indices_path": "tile_1_output.npy",
+                        },
+                    ],
+                },
+                handle,
+            )
+
+        state_dir = os.path.join(tmpdir, "tile_state")
+        model = WeatherGraphModel(
+            "unused_global_model.onnx",
+            weights_dir=tmpdir,
+            spatial_tiling=True,
+            tile_bundle_path=bundle_dir,
+            tile_state_backend="memmap",
+            tile_state_dir=state_dir,
+        )
+
+        input_data = np.arange(1 * 4 * 78, dtype=np.float32).reshape(1, 4, 78)
+        output_data = model.engine.predict(input_data)
+        report = model.estimate_tiled_memory_report()
+
+        assert isinstance(output_data, np.memmap)
+        np.testing.assert_allclose(output_data, input_data)
+        assert report["reference_grid_shape"] == (2, 2)
+        assert report["reference_grid_node_count"] == 4
+        assert report["global_state_bytes"] == 1 * 4 * 78 * 4
+        assert report["max_tile_input_nodes"] == 3
+        assert report["max_tile_output_nodes"] == 2
+        assert report["max_tile_working_set_bytes"] == (3 * 78 * 4) + (2 * 78 * 4)
+        assert any(name.endswith(".dat") for name in os.listdir(state_dir))
+
+def test_model_reference_grid_resolution_prepares_higher_resolution_exports(monkeypatch):
+    """Verifies export/reference-grid metadata can be configured independently of the old 1° hardcoded shape."""
+    import weathergraph.model as model_module
+
+    class StubEngine:
+        def __init__(self,
+                     model_path,
+                     intra_op_threads=1,
+                     disable_cpu_mem_arena=False,
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
+            self.model_path = model_path
+
+        def output_shape(self):
+            return (1, 6483600, 78)
+
+        def cpu_mem_arena_enabled(self):
+            return True
+
+        def mem_pattern_enabled(self):
+            return True
+
+        def execution_provider(self):
+            return "cpu"
+
+        def cpu_ep_fallback_enabled(self):
+            return True
+
+        def predict(self, input_data):
+            return input_data
+
+    monkeypatch.setattr(
+        model_module,
+        "weathergraph_backend",
+        types.SimpleNamespace(WeatherGraphEngine=StubEngine),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        model = WeatherGraphModel(
+            "dummy.onnx",
+            weights_dir=tmpdir,
+            reference_grid_resolution_degrees=0.1,
+        )
+
+        lat, lon = model._reference_grid_coordinates(dtype=np.float32)
+
+        assert model.reference_grid_shape == (1801, 3600)
+        assert model.reference_grid_node_count == 1801 * 3600
+        assert model.reference_grid_resolution_degrees == pytest.approx(0.1)
+        assert lat.shape == (1801,)
+        assert lon.shape == (3600,)
+        assert lon[-1] == pytest.approx(359.9)
+
+def test_reference_grid_forecast_uses_configured_shape(monkeypatch):
+    """Verifies the reference-grid reshape path honors configurable export geometry."""
+    import weathergraph.model as model_module
+
+    class StubEngine:
+        def __init__(self,
+                     model_path,
+                     intra_op_threads=1,
+                     disable_cpu_mem_arena=False,
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
+            self.model_path = model_path
+
+        def output_shape(self):
+            return (1, 12, 78)
+
+        def cpu_mem_arena_enabled(self):
+            return True
+
+        def mem_pattern_enabled(self):
+            return True
+
+        def execution_provider(self):
+            return "cpu"
+
+        def cpu_ep_fallback_enabled(self):
+            return True
+
+        def predict(self, input_data):
+            return input_data
+
+    monkeypatch.setattr(
+        model_module,
+        "weathergraph_backend",
+        types.SimpleNamespace(WeatherGraphEngine=StubEngine),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        model = WeatherGraphModel(
+            "dummy.onnx",
+            weights_dir=tmpdir,
+            reference_grid_shape=(3, 4),
+        )
+
+        def fake_iter_forecast(initial_ds, steps):
+            yield np.arange(1 * 12 * 78, dtype=np.float32).reshape(1, 12, 78)
+
+        monkeypatch.setattr(model, "iter_forecast", fake_iter_forecast)
+
+        step_index, era5_step = next(model._iter_reference_grid_forecast(initial_ds="ignored", steps=1))
+
+        assert step_index == 0
+        assert era5_step.shape == (3, 4, 78)
+
 def test_forecast_export_uses_streaming_path(monkeypatch):
     """Verifies NetCDF export dispatches through the streaming path instead of materializing forecast()."""
     import weathergraph.model as model_module
@@ -372,7 +824,13 @@ def test_forecast_export_uses_streaming_path(monkeypatch):
                      model_path,
                      intra_op_threads=1,
                      disable_cpu_mem_arena=False,
-                     disable_mem_pattern=False):
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
             self.model_path = model_path
             self.intra_op_threads = intra_op_threads
             self.disable_cpu_mem_arena = disable_cpu_mem_arena
@@ -435,7 +893,13 @@ def test_model_rejects_latent_output_artifacts(monkeypatch):
                      model_path,
                      intra_op_threads=1,
                      disable_cpu_mem_arena=False,
-                     disable_mem_pattern=False):
+                     disable_mem_pattern=False,
+                     execution_provider="cpu",
+                     execution_device_id=0,
+                     execution_memory_limit=0,
+                     disable_cpu_ep_fallback=False,
+                     execution_provider_options=None,
+                     **_kwargs):
             self.model_path = model_path
             self.intra_op_threads = intra_op_threads
             self.disable_cpu_mem_arena = disable_cpu_mem_arena

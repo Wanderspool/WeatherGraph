@@ -39,6 +39,19 @@ Examples
   # Custom NetCDF with renamed variables:
   DATA_SOURCE=custom DATA_SOURCE_SCHEMA='{"source":"forecast.nc","variable_map":{"z":"geopotential"}}' \\
       python examples/simulate_meteorologist.py
+
+        # Accelerator execution provider on GPU host:
+    WEATHERGRAPH_EXECUTION_PROVIDER=cuda \\
+        WEATHERGRAPH_EXECUTION_DEVICE_ID=0 \
+    WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK=true \\
+    python examples/simulate_meteorologist.py
+
+    # Exact tiled run prepared for higher-resolution exports:
+    WEATHERGRAPH_SPATIAL_TILING=true \
+    WEATHERGRAPH_TILE_BUNDLE_PATH=tile_bundle/manifest.json \
+    WEATHERGRAPH_TILE_STATE_BACKEND=memmap \
+    WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES=0.1 \
+    python examples/simulate_meteorologist.py
 """
 
 import json
@@ -65,6 +78,28 @@ def env_flag(name: str, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name: str, default: int = 0) -> int:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return int(value)
+
+
+def env_first(*names: str, default=None):
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and value.strip() != "":
+            return value.strip()
+    return default
+
+
+def env_float(name: str, default=None):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return float(value)
 
 
 def build_adapter_for_simulation(sim_file: str, era5_data_dir: str):
@@ -166,7 +201,15 @@ def run_real_simulations():
     MODEL_PATH = os.getenv("WEATHERGRAPH_ONNX_MODEL", "models/weather_gnn.onnx")
     WEIGHTS_DIR = os.getenv("WEATHERGRAPH_WEIGHTS_DIR", os.getenv("KEISLER_WEIGHTS_DIR", "data"))
     ERA5_DATA_DIR = os.getenv("ERA5_DATA_DIR", "data/era5_archives")
-    TILE_BUNDLE_PATH = os.getenv("WEATHERGRAPH_TILE_BUNDLE_PATH") or None
+    TILE_BUNDLE_PATH = env_first("WEATHERGRAPH_TILE_BUNDLE_PATH", default=None)
+    EXECUTION_PROVIDER = env_first("WEATHERGRAPH_EXECUTION_PROVIDER", default="cpu")
+    EXECUTION_DEVICE_ID = int(env_first("WEATHERGRAPH_EXECUTION_DEVICE_ID", "WEATHERGRAPH_CUDA_DEVICE_ID", default="0"))
+    EXECUTION_MEMORY_LIMIT = int(env_first("WEATHERGRAPH_EXECUTION_MEMORY_LIMIT", "WEATHERGRAPH_CUDA_GPU_MEM_LIMIT", default="0"))
+    EXECUTION_PROVIDER_OPTIONS = env_first("WEATHERGRAPH_EXECUTION_PROVIDER_OPTIONS", default=None)
+    REFERENCE_GRID_SHAPE = env_first("WEATHERGRAPH_REFERENCE_GRID_SHAPE", default=None)
+    REFERENCE_GRID_RESOLUTION_DEGREES = env_float("WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES", default=None)
+    TILE_STATE_BACKEND = env_first("WEATHERGRAPH_TILE_STATE_BACKEND", default="ram")
+    TILE_STATE_DIR = env_first("WEATHERGRAPH_TILE_STATE_DIR", default=None)
 
     verify_environment(MODEL_PATH, WEIGHTS_DIR, ERA5_DATA_DIR)
     
@@ -178,12 +221,40 @@ def run_real_simulations():
             intra_op_threads=int(os.getenv("WEATHERGRAPH_INTRA_OP_THREADS", "1")),
             disable_cpu_mem_arena=env_flag("WEATHERGRAPH_DISABLE_CPU_MEM_ARENA"),
             disable_mem_pattern=env_flag("WEATHERGRAPH_DISABLE_MEM_PATTERN"),
+            execution_provider=EXECUTION_PROVIDER,
+            execution_device_id=EXECUTION_DEVICE_ID,
+            execution_memory_limit=EXECUTION_MEMORY_LIMIT,
+            execution_provider_options=EXECUTION_PROVIDER_OPTIONS,
+            disable_cpu_ep_fallback=env_flag("WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK"),
+            reference_grid_shape=REFERENCE_GRID_SHAPE,
+            reference_grid_resolution_degrees=REFERENCE_GRID_RESOLUTION_DEGREES,
             spatial_tiling=env_flag("WEATHERGRAPH_SPATIAL_TILING"),
             tile_bundle_path=TILE_BUNDLE_PATH,
+            tile_state_backend=TILE_STATE_BACKEND,
+            tile_state_dir=TILE_STATE_DIR,
         )
     except Exception as e:
         print(f"\n[CRITICAL ERROR] C++ Engine failed to load the model: {e}")
         sys.exit(1)
+
+    print(
+        "[+] Runtime provider:",
+        model.execution_provider,
+        f"(cpu_ep_fallback_enabled={model.cpu_ep_fallback_enabled})",
+    )
+    if model.reference_grid_shape is not None:
+        print(
+            "[+] Reference grid:",
+            model.reference_grid_shape,
+            f"(resolution_degrees={model.reference_grid_resolution_degrees})",
+        )
+    if model.spatial_tiling:
+        report = model.estimate_tiled_memory_report()
+        print(
+            "[+] Tiled state backend:",
+            model.tile_state_backend,
+            f"(max_tile_working_set_bytes={report['max_tile_working_set_bytes']})",
+        )
 
     # 10 REAL SIMULATIONS
     simulations = [

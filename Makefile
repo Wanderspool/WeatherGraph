@@ -35,7 +35,7 @@ all: extract convert build  ## Full pipeline (extract → convert → build)
 # ------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
-onnxruntime:  ## Download & unpack ONNX Runtime shared library into onnxruntime-sdk/lib/
+onnxruntime:  ## Download & unpack ONNX Runtime shared libraries into onnxruntime-sdk/lib/
 # ------------------------------------------------------------------------------
 	@echo "[onnxruntime] Downloading ONNX Runtime v$(ONNXRUNTIME_VERSION) for $(ONNXRUNTIME_PLATFORM)..."
 	@mkdir -p onnxruntime-sdk/lib
@@ -82,7 +82,7 @@ build: onnxruntime-sdk/lib/libonnxruntime.so $(MODEL_OUT)  ## Compile C++ pybind
 	cmake --build $(BUILD_DIR) --parallel
 	@echo "[build] Copying .so into weathergraph/core/"
 	@cp $(BUILD_DIR)/weathergraph_backend.so $(SO_OUT)
-	@cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+	@cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 	@echo "[build] Done. Backend: $(SO_OUT)"
 
 # ------------------------------------------------------------------------------
@@ -114,4 +114,5 @@ help:  ## Show this help message
 	@echo "  KEISLER_SOURCE_DIR      Backward-compatible alias for WEATHERGRAPH_SOURCE_DIR"
 	@echo "  PYTHON              Python interpreter to use          (default: python3)"
 	@echo "  ONNXRUNTIME_VERSION ONNX Runtime version to download   (default: $(ONNXRUNTIME_VERSION))"
+	@echo "  ONNXRUNTIME_PLATFORM ORT package platform/variant      (default: $(ONNXRUNTIME_PLATFORM))"
 	@echo ""

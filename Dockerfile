@@ -17,6 +17,10 @@
 # ─── Stage 1: Builder ─────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 
+ARG ONNXRUNTIME_VERSION=1.18.0
+ARG ONNXRUNTIME_PLATFORM=linux-x64
+ARG ONNXRUNTIME_URL=
+
 # Build tools + curl for ONNX Runtime download
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
@@ -33,8 +37,17 @@ COPY onnxruntime-sdk/include/ onnxruntime-sdk/include/
 COPY src/ src/
 COPY weathergraph/ weathergraph/
 
-# Download the ONNX Runtime shared library (matches `make onnxruntime`)
-RUN make onnxruntime
+# Download the ONNX Runtime shared libraries (matches `make onnxruntime`)
+RUN if [ -n "$ONNXRUNTIME_URL" ]; then \
+            make onnxruntime \
+                ONNXRUNTIME_VERSION="$ONNXRUNTIME_VERSION" \
+                ONNXRUNTIME_PLATFORM="$ONNXRUNTIME_PLATFORM" \
+                ONNXRUNTIME_URL="$ONNXRUNTIME_URL"; \
+        else \
+            make onnxruntime \
+                ONNXRUNTIME_VERSION="$ONNXRUNTIME_VERSION" \
+                ONNXRUNTIME_PLATFORM="$ONNXRUNTIME_PLATFORM"; \
+        fi
 
 # CMakeLists.txt expects a pybind11-enabled virtual environment during build.
 RUN python3.11 -m venv /root/weathergraph/venv \
@@ -46,7 +59,7 @@ RUN python3.11 -m venv /root/weathergraph/venv \
 RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
     && cmake --build build --parallel "$(nproc)" \
     && cp build/weathergraph_backend.so weathergraph/core/ \
-    && cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+    && cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
 # Install Python runtime dependencies
 RUN pip install --no-cache-dir \
@@ -54,7 +67,8 @@ RUN pip install --no-cache-dir \
     xarray \
     pandas \
     dask \
-    netCDF4
+    netCDF4 \
+    zarr
 
 # ─── Stage 2: Test ────────────────────────────────────────────────────────────
 FROM builder AS test
@@ -91,14 +105,17 @@ RUN pip install --no-cache-dir \
     xarray \
     pandas \
     dask \
-    netCDF4
+    netCDF4 \
+    zarr
 
 # The ONNX model is large — mount it at runtime from a GCS bucket or volume.
 # Example: docker run -v /path/to/models:/app/models weathergraph:latest
+# Accelerator-backed deployments also need an ONNX Runtime bundle with the
+# matching execution-provider libraries plus the corresponding vendor runtime.
 VOLUME ["/app/models"]
 
 ENV PYTHONPATH=/app
 
-# Smoke-test: verify the engine is importable on container start
-CMD ["python3", "-c", \
-    "from weathergraph import WeatherGraphModel; print('WeatherGraph ready.')"]
+# Default to the supported researcher-facing CLI. This still imports the
+# backend on container start, so it remains a lightweight smoke check.
+CMD ["python3", "-m", "weathergraph.cli", "--help"]

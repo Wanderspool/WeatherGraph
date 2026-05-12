@@ -9,7 +9,9 @@ Each adapter exposes a single ``load()`` method that returns an
 
   Variables  : z, q, t, u, v, w
   Levels (hPa): 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000
-    Grid        : 181 × 360  (1° ERA5 lat/lon for the current reference artifact)
+    Grid        : source-dependent lat/lon grid; the current reference artifact
+                                commonly uses 181 × 360 ERA5, while export geometry is
+                                configured separately in WeatherGraphModel
   Coords      : latitude  (-90 … 90),  longitude (0 … 359),  level
 
 Adapters that fetch remote data accept keyword arguments in ``__init__``

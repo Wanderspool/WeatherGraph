@@ -35,10 +35,18 @@ jobs:
       model-url: 'https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx'
       # Optional runtime knobs for low-memory runs:
       # intra-op-threads: 1
+      # execution-provider: cuda
+      # execution-device-id: 0
+      # execution-memory-limit: 8589934592
+      # execution-provider-options: '{"trt_engine_cache_enable": true}'
+      # disable-cpu-ep-fallback: true
       # disable-cpu-mem-arena: true
       # disable-mem-pattern: true
       # spatial-tiling: true
       # tile-bundle-path: 'tile_bundle/manifest.json'
+      # reference-grid-resolution-degrees: '0.1'
+      # tile-state-backend: memmap
+      # tile-state-dir: '/scratch/weathergraph'
       # Other examples:
       #   model-url: 'https://my-bucket.s3.amazonaws.com/models/my_gnn.onnx'
       #   model-url: 'https://github.com/MyOrg/MyRepo/releases/download/v1.0/model.onnx'
@@ -97,6 +105,9 @@ jobs:
   #     model-script: 'exporter/build_gnn_graph.py'
   #     model-pip-requirements: 'numpy onnx onnxscript'
   #     allow-prototype-exporter: true
+  #     execution-provider: cuda
+  #     execution-device-id: 0
+  #     disable-cpu-ep-fallback: true
   #     disable-cpu-mem-arena: true
   #     disable-mem-pattern: true
 
@@ -173,6 +184,17 @@ jobs:
 #     model-url: '...'
 #     data-source: gfs
 #     data-source-params: '{"date": "2024-01-01 00:00", "fxx": 0}'
+#
+# ── Example: High-resolution tiled validation ────────────────────────────────
+#
+#   with:
+#     model-url: '...'
+#     execution-provider: cuda
+#     execution-device-id: 0
+#     spatial-tiling: true
+#     tile-bundle-path: 'tile_bundle/manifest.json'
+#     reference-grid-resolution-degrees: '0.1'
+#     tile-state-backend: memmap
 #
 # ── Example: Custom file with renamed variables ────────────────────────────────
 #

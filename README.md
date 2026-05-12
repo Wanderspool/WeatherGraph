@@ -12,6 +12,7 @@ A high-performance C++ engine for global weather prediction using Graph Neural N
 -   **Zero-Copy Inference:** Direct memory mapping between Python (`xarray`/`numpy`) and the C++ ONNX core using the `pybind11` Buffer Protocol.
 -   **Memory-Aware Runtime:** Designed to minimize copies across Python/C++ boundaries and keep CPU inference practical on constrained machines for coarse reference models.
 -   **Optional Low-Memory ORT Mode:** `disable_cpu_mem_arena` and `disable_mem_pattern` can be enabled in any supported pipeline when lower reserved RSS matters more than peak throughput.
+-   **Optional Multi-EP Acceleration:** `execution_provider` supports `cuda`, `tensorrt`, `rocm`, and `openvino` when the matching ONNX Runtime execution-provider libraries are available.
 -   **In-Graph Normalization:** Pre-processing (Z-score) is baked into the ONNX graph for maximum performance.
 -   **Out-of-Core Processing:** Native integration with `Dask` for processing multi-gigabyte ERA5 archives on limited hardware.
 -   **Exact Spatial Tiling Contract:** `spatial_tiling` is available as an exact graph-aware mode via tile bundles with explicit partition metadata and per-tile ONNX artifacts.
@@ -39,6 +40,8 @@ cd WeatherGraph
 pip install .
 ```
 
+For accelerator-backed inference, provide an ONNX Runtime SDK whose `onnxruntime-sdk/lib/` contains `libonnxruntime.so` plus the matching execution-provider libraries. The build helpers already copy any `libonnxruntime*.so*` artifacts into `weathergraph/core/`; the host or container still needs the corresponding vendor runtime libraries.
+
 ### Download Pre-built Binaries
 Check the [Releases](https://github.com/Wanderspool/WeatherGraph/releases) page for pre-compiled wheels for Linux, macOS, and Windows.
 
@@ -46,15 +49,44 @@ Check the [Releases](https://github.com/Wanderspool/WeatherGraph/releases) page 
 
 ## 📊 Quick Start
 
+### Supported CLI
+
+Installing the package with `pip install .` also installs a supported
+researcher-facing CLI:
+
+```bash
+weathergraph list-sources
+
+weathergraph inspect \
+    --model-path models/weather_gnn.onnx \
+    --weights-dir data \
+    --execution-provider cuda \
+    --execution-device-id 0
+
+weathergraph forecast \
+    --model-path models/weather_gnn.onnx \
+    --weights-dir data \
+    --data-source era5_netcdf \
+    --input-path initial_state.nc \
+    --steps 1 \
+    --output-format none
+```
+
+If you are running directly from a source checkout without installing the
+package, use `python -m weathergraph.cli ...` instead.
+
 ## ✅ Implementation Status
 
 Implemented in the current codebase:
 
 - Optional ONNX Runtime low-memory mode in the C++ backend and Python wrapper.
-- Runtime propagation of `intra_op_threads`, `disable_cpu_mem_arena`, and `disable_mem_pattern` through supported pipelines.
+- Optional multi-provider execution mode in the C++ backend and Python wrapper for `cpu`, `cuda`, `tensorrt`, `rocm`, and `openvino`.
+- Runtime propagation of `intra_op_threads`, `execution_provider`, `execution_device_id`, `execution_memory_limit`, `execution_provider_options`, `disable_cpu_ep_fallback`, `disable_cpu_mem_arena`, and `disable_mem_pattern` through supported pipelines.
 - Exact graph-aware spatial tiling contract via `spatial_tiling=True` and `tile_bundle_path=...`.
+- Configurable reference-grid export metadata via `reference_grid_shape` or `reference_grid_resolution_degrees`.
+- Optional `tile_state_backend="memmap"` and `tile_state_dir=...` for lower-RAM tiled rollouts on large grids.
 - Streaming rollout/export paths through `iter_forecast()` and `forecast_export()` for lower-memory multi-step runs.
-- Pipeline wiring for notebook examples, reusable GitHub Actions, Ansible, Terraform/cloud-init, GCP Batch, AWS Batch, and the simulation runner.
+- Pipeline wiring for notebook examples, reusable GitHub Actions, Ansible, Terraform/cloud-init, GCP Batch, AWS Batch, and the simulation runner, including automatic staging of ONNX Runtime provider `.so` files when present.
 
 Still intentionally out of scope in the current tree:
 
@@ -88,6 +120,34 @@ Optional low-memory runtime knobs:
 - `disable_mem_pattern=True` disables memory-pattern reuse and can reduce static reservation further.
 - Both are `False` by default because they trade memory headroom for slower inference.
 
+Optional accelerator runtime knobs:
+
+- `execution_provider="cuda"` prefers the CUDA execution provider instead of the default CPU path. Other supported values are `tensorrt`, `rocm`, and `openvino`.
+- `execution_device_id=0` selects the accelerator ordinal used by ONNX Runtime.
+- `execution_memory_limit=0` keeps the provider default; set a byte value to cap the provider arena or workspace explicitly.
+- `execution_provider_options='{"key":"value"}'` forwards provider-specific settings without changing the Python API surface.
+- `disable_cpu_ep_fallback=True` fails fast if any node would silently fall back to CPU execution.
+
+Example GPU configuration:
+
+```python
+model = WeatherGraphModel(
+    model_path="models/weather_gnn.onnx",
+    weights_dir="data",
+    execution_provider="cuda",
+    execution_device_id=0,
+    disable_cpu_ep_fallback=True,
+)
+```
+
+For 0.1° preparation and other high-resolution tiled runs, the control plane also accepts:
+
+- `reference_grid_shape=(1801, 3600)` or `reference_grid_resolution_degrees=0.1`
+- `tile_state_backend="memmap"`
+- `tile_state_dir="/fast-scratch/weathergraph"`
+
+This requires an ONNX Runtime distribution that includes the selected execution provider, plus a host or container runtime that provides the corresponding vendor libraries.
+
 Trade-off summary:
 
 - Lower reserved RSS and fewer false OOMs on memory-constrained machines.
@@ -116,6 +176,8 @@ model = WeatherGraphModel(
     disable_mem_pattern=True,
     spatial_tiling=True,
     tile_bundle_path="tile_bundle/manifest.json",
+    reference_grid_resolution_degrees=0.1,
+    tile_state_backend="memmap",
 )
 ```
 
@@ -124,7 +186,21 @@ This is not naive node slicing. A tile bundle must include explicit partition me
 Current status:
 
 - The runtime and pipelines already accept exact tiling parameters.
-- Bundle generation is not automated yet; users must provide a prepared tile bundle.
+- Bundle metadata can now be prepared automatically with `weathergraph build-tile-bundle` or `python exporter/build_tile_bundle.py` when you already have per-tile ONNX artifacts plus graph senders/receivers arrays.
+- Exporting the per-tile ONNX artifacts themselves is still a separate step; the current builder packages manifests, input halos, output ownership indices, and sizing metadata.
+
+Example bundle build:
+
+```bash
+weathergraph build-tile-bundle \
+    --output-dir tile_bundle \
+    --senders-path data/graph_data/senders_receivers_encoder/senders.npy \
+    --receivers-path data/graph_data/senders_receivers_encoder/receivers.npy \
+    --tile-model-dir tile_models \
+    --reference-grid-resolution-degrees 0.1 \
+    --tile-grid-shape 150x150 \
+    --halo-hops 1
+```
 
 ### Multi-Day Rollout
 ```python

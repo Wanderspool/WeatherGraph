@@ -67,29 +67,91 @@ Common output formats are:
 Several examples expose the same runtime options because they all call the same `WeatherGraphModel` constructor.
 
 - `intra_op_threads`
+- `execution_provider`
+- `execution_device_id`
+- `execution_memory_limit`
+- `execution_provider_options`
+- `disable_cpu_ep_fallback`
 - `disable_cpu_mem_arena`
 - `disable_mem_pattern`
 - `spatial_tiling`
 - `tile_bundle_path`
+- `reference_grid_shape`
+- `reference_grid_resolution_degrees`
+- `tile_state_backend`
+- `tile_state_dir`
+
+### Bundle preparation
+
+If you already have per-tile ONNX artifacts, the supported way to package a usable bundle is:
+
+```bash
+weathergraph build-tile-bundle \
+	--output-dir tile_bundle \
+	--senders-path data/graph_data/senders_receivers_encoder/senders.npy \
+	--receivers-path data/graph_data/senders_receivers_encoder/receivers.npy \
+	--tile-model-dir tile_models \
+	--reference-grid-shape 1801x3600 \
+	--tile-grid-shape 150x150
+```
+
+This command generates `manifest.json` plus the `*_input.npy` and `*_output.npy` index arrays expected by `WeatherGraphModel`.
 
 ### Important interpretation of the low-memory and tiling flags
 
+- `execution_provider` defaults to `cpu`; accelerator values such as `cuda`, `tensorrt`, `rocm`, and `openvino` only make sense on hosts that have the matching ONNX Runtime provider bundle and vendor runtime.
+- `disable_cpu_ep_fallback` only makes sense when `execution_provider` is not `cpu`.
 - `disable_cpu_mem_arena` and `disable_mem_pattern` are optional and off by default.
 - `spatial_tiling` is also optional and requires a valid tile bundle.
+- `tile_state_backend="memmap"` is useful when tiled high-resolution runs are limited by RAM rather than disk bandwidth.
 - These flags are runtime controls, not separate product modes.
 
 ## Which Example Should You Start With?
 
 If you are new to the project, use this order.
 
-1. `examples/simulate_meteorologist.py` if you want to understand the runtime locally.
-2. `examples/playbooks/jupiter_notebook.ipynb` if you want an interactive walk-through.
-3. `examples/playbooks/github_actions.yml` if you want automated validation in CI.
-4. `examples/playbooks/ansible/site.yml` if you already manage your own Linux hosts.
-5. `examples/playbooks/terraform/` if you want infrastructure provisioning plus execution.
-6. `examples/playbooks/gcp/batch-job.yaml` or `examples/playbooks/aws/cloudformation.yaml` if you want managed cloud batch execution.
+1. `weathergraph` CLI if you want the supported operational entrypoint with inspect and forecast modes.
+2. `examples/simulate_meteorologist.py` if you want to study a richer scenario runner around the same runtime.
+3. `examples/playbooks/jupiter_notebook.ipynb` if you want an interactive walk-through.
+4. `examples/playbooks/github_actions.yml` if you want automated validation in CI.
+5. `examples/playbooks/ansible/site.yml` if you already manage your own Linux hosts.
+6. `examples/playbooks/terraform/` if you want infrastructure provisioning plus execution.
+7. `examples/playbooks/gcp/batch-job.yaml` or `examples/playbooks/aws/cloudformation.yaml` if you want managed cloud batch execution.
 
-## 1. Local Script: `examples/simulate_meteorologist.py`
+## 1. Supported CLI: `weathergraph`
+
+### What this example is for
+
+This is the supported front door for researchers who want to use WeatherGraph without writing Python glue code.
+
+### What it provides
+
+- `weathergraph list-sources` to discover adapters
+- `weathergraph inspect` to validate runtime/provider/grid settings and print memory sizing
+- `weathergraph forecast` to run one-step inference, iterative rollout, or export to disk
+
+### Typical commands
+
+```bash
+weathergraph inspect \
+	--model-path models/weather_gnn.onnx \
+	--weights-dir data \
+	--execution-provider cuda \
+	--execution-device-id 0
+
+weathergraph forecast \
+	--model-path models/weather_gnn.onnx \
+	--weights-dir data \
+	--data-source era5_netcdf \
+	--input-path data/era5_archives/init_state.nc \
+	--steps 40 \
+	--output-format zarr \
+	--output-path forecast_out
+```
+
+From a source checkout without installation, use `python -m weathergraph.cli`.
+
+## 2. Local Script: `examples/simulate_meteorologist.py`
 
 ### What this example is for
 
@@ -107,7 +169,7 @@ Use this example when you want to:
 - confirm that your local installation works
 - test a real model against real meteorological input
 - compare different data sources without writing new code
-- experiment with low-memory or tiling flags in the simplest possible setup
+- experiment with low-memory, GPU-provider, or tiling flags in the simplest possible setup
 
 ### What you need to provide
 
@@ -123,10 +185,19 @@ Environment variables used by the script include:
 - `WEATHERGRAPH_WEIGHTS_DIR`
 - `ERA5_DATA_DIR`
 - `WEATHERGRAPH_INTRA_OP_THREADS`
+- `WEATHERGRAPH_EXECUTION_PROVIDER`
+- `WEATHERGRAPH_EXECUTION_DEVICE_ID`
+- `WEATHERGRAPH_EXECUTION_MEMORY_LIMIT`
+- `WEATHERGRAPH_EXECUTION_PROVIDER_OPTIONS`
+- `WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK`
 - `WEATHERGRAPH_DISABLE_CPU_MEM_ARENA`
 - `WEATHERGRAPH_DISABLE_MEM_PATTERN`
 - `WEATHERGRAPH_SPATIAL_TILING`
 - `WEATHERGRAPH_TILE_BUNDLE_PATH`
+- `WEATHERGRAPH_REFERENCE_GRID_SHAPE`
+- `WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES`
+- `WEATHERGRAPH_TILE_STATE_BACKEND`
+- `WEATHERGRAPH_TILE_STATE_DIR`
 - `DATA_SOURCE`
 - source-specific variables such as `CDS_DATE`, `GFS_DATE`, `OPEN_METEO_LAT`, `OPEN_METEO_LON`, or `DATA_SOURCE_SCHEMA`
 
@@ -150,17 +221,31 @@ WEATHERGRAPH_DISABLE_MEM_PATTERN=true \
 python examples/simulate_meteorologist.py
 ```
 
-If you want to test exact tiling:
+If you want to test the CUDA execution provider:
+
+```bash
+WEATHERGRAPH_EXECUTION_PROVIDER=cuda \
+WEATHERGRAPH_EXECUTION_DEVICE_ID=0 \
+WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK=true \
+python examples/simulate_meteorologist.py
+```
+
+If you want to test exact tiling prepared for a higher-resolution export path:
 
 ```bash
 WEATHERGRAPH_SPATIAL_TILING=true \
 WEATHERGRAPH_TILE_BUNDLE_PATH=tile_bundle/manifest.json \
+WEATHERGRAPH_TILE_STATE_BACKEND=memmap \
+WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES=0.1 \
 python examples/simulate_meteorologist.py
 ```
 
 ### Common mistakes
 
+- requesting `WEATHERGRAPH_EXECUTION_PROVIDER=cuda` without shipping the ONNX Runtime CUDA provider `.so` files or compatible vendor runtime libraries
+- setting `WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK=true` while still using the default CPU execution provider
 - enabling `WEATHERGRAPH_SPATIAL_TILING` without providing a tile bundle
+- asking for a high-resolution reference grid without confirming that the model or tile bundle exposes enough nodes for that export shape
 - assuming the script can generate the ONNX model for you on a machine that cannot produce it
 - using a data source that requires extra Python packages without installing them first
 

@@ -138,15 +138,22 @@ Behavior:
 - `netcdf4` and `zarr` stream step-by-step to disk.
 - `npz` still materializes the trajectory first because the archive format is not append-friendly.
 
-## 7. Optional Low-Memory ONNX Runtime Mode
+## 7. Optional ONNX Runtime Controls
 
 Main code: `src/cpp/main.cpp`, `weathergraph/model.py`
 
 Implemented runtime knobs:
 
 - `intra_op_threads`
+- `execution_provider`
+- `execution_device_id`
+- `execution_memory_limit`
+- `execution_provider_options`
+- `disable_cpu_ep_fallback`
 - `disable_cpu_mem_arena`
 - `disable_mem_pattern`
+
+### Low-memory CPU controls
 
 What the low-memory switches do:
 
@@ -169,6 +176,38 @@ When not to use it by default:
 - Throughput-oriented workstation runs.
 - Stable environments where allocator reuse is beneficial.
 
+### Accelerator execution-provider controls
+
+What the accelerator switches do:
+
+- `execution_provider` selects `cuda`, `tensorrt`, `rocm`, or `openvino` when the matching execution-provider libraries are available.
+- `execution_device_id` selects which accelerator ordinal to use.
+- `execution_memory_limit` lets operators place an explicit cap on the provider arena or workspace.
+- `execution_provider_options` forwards provider-specific JSON configuration without widening the Python API surface.
+- `disable_cpu_ep_fallback=True` turns silent mixed CPU/accelerator placement into a fail-fast contract.
+
+Why this exists:
+
+- Workstation and batch deployments often have more accelerator throughput than CPU throughput for the same model.
+- Operators need to choose whether partial CPU fallback is acceptable or whether the whole graph must stay on the selected accelerator.
+
+Operational prerequisites:
+
+- The ONNX Runtime bundle must include the chosen execution-provider shared libraries.
+- The host or container must provide the vendor runtime compatible with that ONNX Runtime build.
+- The current backend still feeds tensors from CPU memory; ONNX Runtime handles the host-device transfers internally.
+
+When to use it:
+
+- Accelerator-equipped workstations or batch nodes.
+- Strict validation runs where silent CPU fallback would hide an incomplete accelerator deployment.
+- Latency-sensitive runs where accelerator execution is the main throughput path.
+
+When not to use it by default:
+
+- CPU-only hosts.
+- Environments where the required provider libraries or vendor runtime stack are not controlled.
+
 ## 8. Exact Spatial Tiling
 
 Main code: `weathergraph/model.py`
@@ -177,6 +216,10 @@ Implemented runtime knobs:
 
 - `spatial_tiling`
 - `tile_bundle_path`
+- `reference_grid_shape`
+- `reference_grid_resolution_degrees`
+- `tile_state_backend`
+- `tile_state_dir`
 
 What this feature is:
 
@@ -188,7 +231,7 @@ What it is not:
 
 - It is not naive node slicing.
 - It is not an approximation mode.
-- It does not auto-generate tile bundles from an arbitrary global model.
+- It does not auto-export per-tile ONNX artifacts from an arbitrary global model.
 
 How it works at runtime:
 
@@ -203,22 +246,29 @@ Fail-fast behavior:
 - If output coverage overlaps or leaves gaps, the bundle is rejected.
 - If a tile produces the wrong output shape, execution stops immediately.
 
+Bundle preparation support:
+
+- `weathergraph build-tile-bundle` and `python exporter/build_tile_bundle.py` can package a valid bundle manifest, output ownership indices, halo-expanded input indices, and memory-sizing metadata.
+- This builder requires graph senders/receivers arrays plus already exported per-tile ONNX files.
+- Per-tile ONNX export remains separate from bundle packaging.
+
 ## 9. Reference-Grid Streaming Export
 
 Main code: `weathergraph/model.py`
 
-The current export path assumes the current 1-degree ERA5 reference-grid layout for reshaping node outputs into `(lat, lon, channel)` form.
+The current export path reshapes node outputs using configured reference-grid metadata instead of a permanently fixed 1-degree layout.
 
 What this means:
 
-- NetCDF4 and Zarr export are production-usable for the current reference artifact.
-- Generic export for arbitrary graph layouts is not implemented yet.
+- NetCDF4 and Zarr export are production-usable when the model or tile bundle exposes enough nodes for the configured reference grid.
+- Generic export for arbitrary graph layouts without reference-grid metadata is still not implemented.
 - Raw `npz` export remains the more general fallback when you only need the trajectory tensor.
 
 ## 10. Pipeline Integrations
 
 Operational surfaces already wired to the current runtime:
 
+- `weathergraph.cli`
 - `examples/simulate_meteorologist.py`
 - `examples/playbooks/jupiter_notebook.ipynb`
 - `examples/playbooks/github_actions.yml`
@@ -228,7 +278,7 @@ Operational surfaces already wired to the current runtime:
 - `examples/playbooks/aws/cloudformation.yaml`
 - `.github/workflows/model-pipeline.yml`
 
-These surfaces already accept the important runtime controls such as low-memory flags and exact tiling parameters.
+These surfaces already accept the important runtime controls such as generic execution-provider settings, low-memory flags, exact tiling parameters, and configurable reference-grid metadata.
 
 ## 11. Validation and Safety Features
 

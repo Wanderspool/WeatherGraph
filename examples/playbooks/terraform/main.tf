@@ -64,10 +64,21 @@ locals {
     output_fmt        = var.output_fmt
     t0                = var.t0
     intra_op_threads  = var.intra_op_threads
+    execution_provider = var.execution_provider
+    execution_device_id = var.execution_device_id
+    execution_memory_limit = var.execution_memory_limit
+    execution_provider_options = var.execution_provider_options
+    disable_cpu_ep_fallback = var.disable_cpu_ep_fallback
     disable_cpu_mem_arena = var.disable_cpu_mem_arena
     disable_mem_pattern = var.disable_mem_pattern
     spatial_tiling    = var.spatial_tiling
     tile_bundle_path  = var.tile_bundle_path
+    reference_grid_shape = var.reference_grid_shape
+    reference_grid_resolution_degrees = var.reference_grid_resolution_degrees
+    tile_state_backend = var.tile_state_backend
+    tile_state_dir = var.tile_state_dir
+    data_source = var.data_source
+    data_source_params = var.data_source_params
   })
 }
 

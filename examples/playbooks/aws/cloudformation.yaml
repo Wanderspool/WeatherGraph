@@ -32,10 +32,17 @@
 #           {"name": "OUTPUT_BUCKET",  "value": "s3://my-bucket/forecasts"},
 #           {"name": "STEPS",          "value": "16"},
 #           {"name": "OUTPUT_FMT",     "value": "zarr"},
+#           {"name": "EXECUTION_PROVIDER",    "value": "cuda"},
+#           {"name": "EXECUTION_DEVICE_ID",   "value": "0"},
+#           {"name": "EXECUTION_MEMORY_LIMIT", "value": "8589934592"},
+#           {"name": "EXECUTION_PROVIDER_OPTIONS", "value": "{\"trt_engine_cache_enable\": true}"},
+#           {"name": "DISABLE_CPU_EP_FALLBACK", "value": "true"},
 #           {"name": "DISABLE_CPU_MEM_ARENA", "value": "true"},
 #           {"name": "DISABLE_MEM_PATTERN",   "value": "true"},
 #           {"name": "SPATIAL_TILING",        "value": "true"},
-#           {"name": "TILE_BUNDLE_PATH",      "value": "/opt/weathergraph/tile_bundle/manifest.json"}
+#           {"name": "TILE_BUNDLE_PATH",      "value": "/opt/weathergraph/tile_bundle/manifest.json"},
+#           {"name": "REFERENCE_GRID_RESOLUTION_DEGREES", "value": "0.1"},
+#           {"name": "TILE_STATE_BACKEND",    "value": "memmap"}
 #         ]
 #       }'
 # ==============================================================================
@@ -77,6 +84,33 @@ Parameters:
     Default: 1
     Description: ONNX Runtime intra-op thread count
 
+  ExecutionProvider:
+    Type:    String
+    Default: "cpu"
+    AllowedValues: [cpu, cuda, tensorrt, rocm, openvino]
+    Description: Preferred ONNX Runtime execution provider
+
+  ExecutionDeviceId:
+    Type:    Number
+    Default: 0
+    Description: Accelerator device ordinal when ExecutionProvider is not cpu
+
+  ExecutionMemoryLimit:
+    Type:    Number
+    Default: 0
+    Description: Provider memory cap in bytes (0 keeps ONNX Runtime default)
+
+  ExecutionProviderOptions:
+    Type:    String
+    Default: ""
+    Description: JSON object string forwarded to the selected execution provider
+
+  DisableCpuEpFallback:
+    Type:    String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Fail session creation if CUDA placement falls back to CPU
+
   DisableCpuMemArena:
     Type:    String
     Default: "false"
@@ -96,6 +130,27 @@ Parameters:
     Type:    String
     Default: ""
     Description: Path to a tile-bundle manifest or directory on the job host
+
+  ReferenceGridShape:
+    Type:    String
+    Default: ""
+    Description: Optional export/reference-grid shape as LATxLON
+
+  ReferenceGridResolutionDegrees:
+    Type:    String
+    Default: ""
+    Description: Optional regular global reference-grid resolution in degrees
+
+  TileStateBackend:
+    Type:    String
+    Default: "ram"
+    AllowedValues: [ram, memmap]
+    Description: Backend used for global tiled-state buffers
+
+  TileStateDir:
+    Type:    String
+    Default: ""
+    Description: Optional directory for memmap-backed tiled-state buffers
 
   DataSource:
     Type:    String
@@ -225,7 +280,7 @@ Resources:
             cmake --build build --parallel $(nproc)
             mkdir -p weathergraph/core
             cp build/weathergraph_backend.so weathergraph/core/
-            cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+            cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
             mkdir -p $(dirname $MODEL_PATH)
             curl -fSL "$MODEL_URL" --output $MODEL_PATH
@@ -237,31 +292,33 @@ Resources:
 
               export LD_LIBRARY_PATH=$WG_DIR/weathergraph/core:$LD_LIBRARY_PATH
               export PYTHONPATH=$WG_DIR
-              $WG_VENV/bin/python -c "
-            import json, xarray as xr
-            from weathergraph import WeatherGraphModel
-            from weathergraph.data_sources import load_source
-            model = WeatherGraphModel(
-              model_path='$MODEL_PATH',
-              weights_dir='$WG_DIR/data',
-              intra_op_threads=int('${INTRA_OP_THREADS:-1}'),
-              disable_cpu_mem_arena='${DISABLE_CPU_MEM_ARENA:-false}'.lower() == 'true',
-              disable_mem_pattern='${DISABLE_MEM_PATTERN:-false}'.lower() == 'true',
-              spatial_tiling='${SPATIAL_TILING:-false}'.lower() == 'true',
-              tile_bundle_path='${TILE_BUNDLE_PATH:-}' or None,
-            )
-            _src  = '$DATA_SOURCE' or 'era5_netcdf'
-            _prms = '$DATA_SOURCE_PARAMS'
-            if _src == 'era5_netcdf':
-                adapter = load_source('era5_netcdf', path='$INPUT_LOCAL')
-            elif _prms:
-                adapter = load_source(_src, **json.loads(_prms))
-            else:
-                adapter = load_source(_src)
-            kw = dict(steps=int('$STEPS'), output_path='/tmp/wg_out', fmt='$OUTPUT_FMT')
-            if '$T0': kw['t0'] = '$T0'
-            model.forecast_export(adapter, **kw)
-            "
+              CLI_ARGS=(
+                -m weathergraph.cli forecast
+                --model-path "$MODEL_PATH"
+                --weights-dir "$WG_DIR/data"
+                --intra-op-threads "${INTRA_OP_THREADS:-1}"
+                --execution-provider "${EXECUTION_PROVIDER:-cpu}"
+                --execution-device-id "${EXECUTION_DEVICE_ID:-0}"
+                --execution-memory-limit "${EXECUTION_MEMORY_LIMIT:-0}"
+                --data-source "$DATA_SOURCE"
+                --steps "$STEPS"
+                --output-format "$OUTPUT_FMT"
+                --output-path "/tmp/wg_out"
+                --tile-state-backend "${TILE_STATE_BACKEND:-ram}"
+              )
+              [[ "${DISABLE_CPU_EP_FALLBACK:-false}" == "true" ]] && CLI_ARGS+=(--disable-cpu-ep-fallback)
+              [[ "${DISABLE_CPU_MEM_ARENA:-false}" == "true" ]] && CLI_ARGS+=(--disable-cpu-mem-arena)
+              [[ "${DISABLE_MEM_PATTERN:-false}" == "true" ]] && CLI_ARGS+=(--disable-mem-pattern)
+              [[ "${SPATIAL_TILING:-false}" == "true" ]] && CLI_ARGS+=(--spatial-tiling)
+              [[ "$DATA_SOURCE" == "era5_netcdf" ]] && CLI_ARGS+=(--input-path "$INPUT_LOCAL")
+              [[ -n "${EXECUTION_PROVIDER_OPTIONS:-}" ]] && CLI_ARGS+=(--execution-provider-options "${EXECUTION_PROVIDER_OPTIONS}")
+              [[ -n "${TILE_BUNDLE_PATH:-}" ]] && CLI_ARGS+=(--tile-bundle-path "${TILE_BUNDLE_PATH}")
+              [[ -n "${REFERENCE_GRID_SHAPE:-}" ]] && CLI_ARGS+=(--reference-grid-shape "${REFERENCE_GRID_SHAPE}")
+              [[ -n "${REFERENCE_GRID_RESOLUTION_DEGREES:-}" ]] && CLI_ARGS+=(--reference-grid-resolution-degrees "${REFERENCE_GRID_RESOLUTION_DEGREES}")
+              [[ -n "${TILE_STATE_DIR:-}" ]] && CLI_ARGS+=(--tile-state-dir "${TILE_STATE_DIR}")
+              [[ -n "$DATA_SOURCE_PARAMS" && "$DATA_SOURCE" != "era5_netcdf" ]] && CLI_ARGS+=(--source-kwargs "$DATA_SOURCE_PARAMS")
+              [[ -n "$T0" ]] && CLI_ARGS+=(--start-time "$T0")
+              $WG_VENV/bin/python "${CLI_ARGS[@]}"
               [ -n "$OUTPUT_BUCKET" ] && aws s3 sync /tmp/wg_out/ "$OUTPUT_BUCKET/"
             fi
 
@@ -276,10 +333,19 @@ Resources:
           - {Name: STEPS,             Value: !Sub "${Steps}"}
           - {Name: OUTPUT_FMT,        Value: !Ref OutputFmt}
           - {Name: INTRA_OP_THREADS,  Value: !Sub "${IntraOpThreads}"}
+          - {Name: EXECUTION_PROVIDER, Value: !Ref ExecutionProvider}
+          - {Name: EXECUTION_DEVICE_ID, Value: !Sub "${ExecutionDeviceId}"}
+          - {Name: EXECUTION_MEMORY_LIMIT, Value: !Sub "${ExecutionMemoryLimit}"}
+          - {Name: EXECUTION_PROVIDER_OPTIONS, Value: !Ref ExecutionProviderOptions}
+          - {Name: DISABLE_CPU_EP_FALLBACK, Value: !Ref DisableCpuEpFallback}
           - {Name: DISABLE_CPU_MEM_ARENA, Value: !Ref DisableCpuMemArena}
           - {Name: DISABLE_MEM_PATTERN, Value: !Ref DisableMemPattern}
           - {Name: SPATIAL_TILING,    Value: !Ref SpatialTiling}
           - {Name: TILE_BUNDLE_PATH,  Value: !Ref TileBundlePath}
+          - {Name: REFERENCE_GRID_SHAPE, Value: !Ref ReferenceGridShape}
+          - {Name: REFERENCE_GRID_RESOLUTION_DEGREES, Value: !Ref ReferenceGridResolutionDegrees}
+          - {Name: TILE_STATE_BACKEND, Value: !Ref TileStateBackend}
+          - {Name: TILE_STATE_DIR, Value: !Ref TileStateDir}
           - {Name: T0,                Value: ""}
           - {Name: DATA_SOURCE,       Value: !Ref DataSource}
           - {Name: DATA_SOURCE_PARAMS,Value: !Ref DataSourceParams}

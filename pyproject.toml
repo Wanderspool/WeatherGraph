@@ -26,6 +26,9 @@ test = [
     "memory-profiler>=0.61.0"
 ]
 
+[project.scripts]
+weathergraph = "weathergraph.cli:main"
+
 [tool.scikit-build]
 cmake.args = ["-DCMAKE_BUILD_TYPE=Release"]
 wheel.expand-macos-universal_tags = true

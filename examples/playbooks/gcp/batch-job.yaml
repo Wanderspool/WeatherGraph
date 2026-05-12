@@ -51,10 +51,19 @@ taskGroups:
               OUTPUT_FMT="${OUTPUT_FMT:-netcdf4}"
               T0="${T0:-}"
               INTRA_OP_THREADS="${INTRA_OP_THREADS:-1}"
+              EXECUTION_PROVIDER="${EXECUTION_PROVIDER:-cpu}"
+              EXECUTION_DEVICE_ID="${EXECUTION_DEVICE_ID:-0}"
+              EXECUTION_MEMORY_LIMIT="${EXECUTION_MEMORY_LIMIT:-0}"
+              EXECUTION_PROVIDER_OPTIONS="${EXECUTION_PROVIDER_OPTIONS:-}"
+              DISABLE_CPU_EP_FALLBACK="${DISABLE_CPU_EP_FALLBACK:-false}"
               DISABLE_CPU_MEM_ARENA="${DISABLE_CPU_MEM_ARENA:-false}"
               DISABLE_MEM_PATTERN="${DISABLE_MEM_PATTERN:-false}"
               SPATIAL_TILING="${SPATIAL_TILING:-false}"
               TILE_BUNDLE_PATH="${TILE_BUNDLE_PATH:-}"
+              REFERENCE_GRID_SHAPE="${REFERENCE_GRID_SHAPE:-}"
+              REFERENCE_GRID_RESOLUTION_DEGREES="${REFERENCE_GRID_RESOLUTION_DEGREES:-}"
+              TILE_STATE_BACKEND="${TILE_STATE_BACKEND:-ram}"
+              TILE_STATE_DIR="${TILE_STATE_DIR:-}"
               DATA_SOURCE="${DATA_SOURCE:-era5_netcdf}"
               DATA_SOURCE_PARAMS="${DATA_SOURCE_PARAMS:-}"
 
@@ -80,7 +89,7 @@ taskGroups:
               cmake --build build --parallel "$(nproc)"
               mkdir -p weathergraph/core
               cp build/weathergraph_backend.so weathergraph/core/
-              cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+              cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
               # ── 6. Acquire model ──────────────────────────────────────────
               mkdir -p "$(dirname "$MODEL_PATH")"
@@ -104,31 +113,34 @@ taskGroups:
                 export LD_LIBRARY_PATH="$WG_DIR/weathergraph/core:$LD_LIBRARY_PATH"
                 export PYTHONPATH="$WG_DIR"
 
-                "$WG_VENV/bin/python" -c "
-              import json, xarray as xr
-              from weathergraph import WeatherGraphModel
-              from weathergraph.data_sources import load_source
-                model = WeatherGraphModel(
-                  model_path='$MODEL_PATH',
-                  weights_dir='$WG_DIR/data',
-                  intra_op_threads=int('$INTRA_OP_THREADS'),
-                  disable_cpu_mem_arena='${DISABLE_CPU_MEM_ARENA}'.lower() == 'true',
-                  disable_mem_pattern='${DISABLE_MEM_PATTERN}'.lower() == 'true',
-                  spatial_tiling='${SPATIAL_TILING}'.lower() == 'true',
-                  tile_bundle_path='${TILE_BUNDLE_PATH}' or None,
+                CLI_ARGS=(
+                  -m weathergraph.cli forecast
+                  --model-path "$MODEL_PATH"
+                  --weights-dir "$WG_DIR/data"
+                  --intra-op-threads "$INTRA_OP_THREADS"
+                  --execution-provider "$EXECUTION_PROVIDER"
+                  --execution-device-id "$EXECUTION_DEVICE_ID"
+                  --execution-memory-limit "$EXECUTION_MEMORY_LIMIT"
+                  --data-source "$DATA_SOURCE"
+                  --steps "$STEPS"
+                  --output-format "$OUTPUT_FMT"
+                  --output-path "$OUTPUT_DIR"
+                  --tile-state-backend "$TILE_STATE_BACKEND"
                 )
-              _src  = '$DATA_SOURCE' or 'era5_netcdf'
-              _prms = '$DATA_SOURCE_PARAMS'
-              if _src == 'era5_netcdf':
-                  adapter = load_source('era5_netcdf', path='$INPUT_LOCAL')
-              elif _prms:
-                  adapter = load_source(_src, **json.loads(_prms))
-              else:
-                  adapter = load_source(_src)
-              kw = dict(steps=int('$STEPS'), output_path='$OUTPUT_DIR', fmt='$OUTPUT_FMT')
-              if '$T0': kw['t0'] = '$T0'
-              model.forecast_export(adapter, **kw)
-              "
+                [[ "$DISABLE_CPU_EP_FALLBACK" == "true" ]] && CLI_ARGS+=(--disable-cpu-ep-fallback)
+                [[ "$DISABLE_CPU_MEM_ARENA" == "true" ]] && CLI_ARGS+=(--disable-cpu-mem-arena)
+                [[ "$DISABLE_MEM_PATTERN" == "true" ]] && CLI_ARGS+=(--disable-mem-pattern)
+                [[ "$SPATIAL_TILING" == "true" ]] && CLI_ARGS+=(--spatial-tiling)
+                [[ "$DATA_SOURCE" == "era5_netcdf" ]] && CLI_ARGS+=(--input-path "$INPUT_LOCAL")
+                [[ -n "$EXECUTION_PROVIDER_OPTIONS" ]] && CLI_ARGS+=(--execution-provider-options "$EXECUTION_PROVIDER_OPTIONS")
+                [[ -n "$TILE_BUNDLE_PATH" ]] && CLI_ARGS+=(--tile-bundle-path "$TILE_BUNDLE_PATH")
+                [[ -n "$REFERENCE_GRID_SHAPE" ]] && CLI_ARGS+=(--reference-grid-shape "$REFERENCE_GRID_SHAPE")
+                [[ -n "$REFERENCE_GRID_RESOLUTION_DEGREES" ]] && CLI_ARGS+=(--reference-grid-resolution-degrees "$REFERENCE_GRID_RESOLUTION_DEGREES")
+                [[ -n "$TILE_STATE_DIR" ]] && CLI_ARGS+=(--tile-state-dir "$TILE_STATE_DIR")
+                [[ -n "$DATA_SOURCE_PARAMS" && "$DATA_SOURCE" != "era5_netcdf" ]] && CLI_ARGS+=(--source-kwargs "$DATA_SOURCE_PARAMS")
+                [[ -n "$T0" ]] && CLI_ARGS+=(--start-time "$T0")
+
+                "$WG_VENV/bin/python" "${CLI_ARGS[@]}"
 
                 [ -n "$OUTPUT_BUCKET" ] && gsutil -m cp -r "$OUTPUT_DIR/" "$OUTPUT_BUCKET/"
                 echo "[wg] Done. Results at ${OUTPUT_BUCKET:-$OUTPUT_DIR}"
@@ -148,10 +160,19 @@ taskGroups:
           OUTPUT_FMT:        "netcdf4"
           T0:                ""
           INTRA_OP_THREADS:  "1"
+          EXECUTION_PROVIDER: "cpu"
+          EXECUTION_DEVICE_ID: "0"
+          EXECUTION_MEMORY_LIMIT: "0"
+          EXECUTION_PROVIDER_OPTIONS: ""
+          DISABLE_CPU_EP_FALLBACK: "false"
           DISABLE_CPU_MEM_ARENA: "false"
           DISABLE_MEM_PATTERN: "false"
           SPATIAL_TILING:    "false"
           TILE_BUNDLE_PATH:  ""
+          REFERENCE_GRID_SHAPE: ""
+          REFERENCE_GRID_RESOLUTION_DEGREES: ""
+          TILE_STATE_BACKEND: "ram"
+          TILE_STATE_DIR: ""
           DATA_SOURCE:       "era5_netcdf"
           DATA_SOURCE_PARAMS: ""
 
