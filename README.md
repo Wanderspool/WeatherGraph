@@ -1,4 +1,4 @@
-# Keisler Weather Engine (C++/ONNX)
+# Weather Graph
 
 [![CI](https://github.com/keisler-engine/keisler-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/keisler-engine/keisler-engine/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -75,7 +75,7 @@ forecast_steps = model.forecast(ds, steps=40)
 We employ a triple-vector validation suite:
 
 1.  **Mathematical Parity:** Verified against original JAX/PyTorch implementations (`atol=1e-5`).
-2.  **Memory Safety:** Zero-leak guarantee during infinite rollouts (verified via `ASan` and `psutil`).
+2.  **Memory Safety:** Zero-leak during infinite rollouts (verified via `ASan` and `psutil`).
 3.  **Physical Robustness:** Deterministic handling of `NaN`/`Inf` and extreme weather events (Category 5 hurricanes).
 
 Run tests locally:

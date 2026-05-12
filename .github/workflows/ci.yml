@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  ONNXRUNTIME_VERSION: "1.18.0"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ─── Lint ────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint (Python)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install ruff
+        run: pip install --quiet ruff
+
+      - name: Run ruff
+        run: ruff check keisler_engine/ tests/ exporter/
+
+  # ─── Build & Test ────────────────────────────────────────────────────────────
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-22.04
+    needs: lint
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake g++
+
+      # Cache the ONNX Runtime shared library (downloaded by `make onnxruntime`)
+      - name: Cache ONNX Runtime SDK
+        id: cache-onnxruntime
+        uses: actions/cache@v4
+        with:
+          path: onnxruntime-sdk/lib
+          key: onnxruntime-${{ env.ONNXRUNTIME_VERSION }}-linux-x64
+
+      - name: Download ONNX Runtime SDK
+        if: steps.cache-onnxruntime.outputs.cache-hit != 'true'
+        run: make onnxruntime
+
+      # CMakeLists.txt hardcodes pybind11 at /root/keisler_engine/venv and a
+      # local keisler_engine/venv (for Python include detection). Both are
+      # created here to match the expected paths.
+      - name: Create pybind11 venvs at expected paths
+        run: |
+          sudo mkdir -p /root/keisler_engine
+          sudo python${{ env.PYTHON_VERSION }} -m venv /root/keisler_engine/venv
+          sudo /root/keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
+          python${{ env.PYTHON_VERSION }} -m venv keisler_engine/venv
+          keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
+
+      - name: Install Python test dependencies
+        run: |
+          pip install --quiet \
+            numpy xarray pandas dask netCDF4 \
+            pytest psutil memory-profiler onnx
+
+      - name: Build C++ backend
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel $(nproc)
+          mkdir -p keisler_engine/core
+          cp build/keisler_cpp_backend.so keisler_engine/core/
+          cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+
+      - name: Run unit tests
+        run: |
+          PYTHONPATH=. pytest \
+            tests/test_cpp_backend.py \
+            tests/test_memory_leak.py \
+            -v --tb=short
+
+  # ─── Release ─────────────────────────────────────────────────────────────────
+  # Builds a wheel and attaches it to the GitHub Release when a version tag is pushed.
+  release:
+    name: Publish wheel to GitHub Releases
+    runs-on: ubuntu-22.04
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y cmake g++
+
+      - name: Download ONNX Runtime SDK
+        run: make onnxruntime
+
+      - name: Create pybind11 venvs at expected paths
+        run: |
+          sudo mkdir -p /root/keisler_engine
+          sudo python${{ env.PYTHON_VERSION }} -m venv /root/keisler_engine/venv
+          sudo /root/keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
+          python${{ env.PYTHON_VERSION }} -m venv keisler_engine/venv
+          keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
+
+      - name: Build C++ backend
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel $(nproc)
+          mkdir -p keisler_engine/core
+          cp build/keisler_cpp_backend.so keisler_engine/core/
+          cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+
+      - name: Build wheel
+        run: |
+          pip install --quiet build
+          python -m build --wheel --no-isolation
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
