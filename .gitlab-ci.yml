@@ -13,7 +13,7 @@
 #   On CI, the extracted data artifacts (data/weights/, data/graph_data/,
 #   data/means.npy, data/stds.npy) must be available as a GitLab artifact
 #   from a separate, protected "model-export" pipeline, or injected via a
-#   shared cache / S3 bucket defined in KEISLER_DATA_CACHE_URL.
+#   shared cache / S3 bucket defined in WEATHERGRAPH_DATA_CACHE_URL.
 #   The extract stage below is skipped on standard MR pipelines and only
 #   runs on the `model-update` branch or when triggered manually.
 # ==============================================================================
@@ -66,13 +66,13 @@ extract:artifacts:
   script:
     - pip install numpy --quiet
     - |
-      if [ -n "$KEISLER_DATA_CACHE_URL" ]; then
+      if [ -n "$WEATHERGRAPH_DATA_CACHE_URL" ]; then
         echo "[extract] Downloading pre-extracted artifacts from cache..."
-        curl -fsSL "$KEISLER_DATA_CACHE_URL/data.tar.gz" | tar -xz
+        curl -fsSL "$WEATHERGRAPH_DATA_CACHE_URL/data.tar.gz" | tar -xz
       else
-        echo "[extract] KEISLER_DATA_CACHE_URL is not set."
+        echo "[extract] WEATHERGRAPH_DATA_CACHE_URL is not set."
         echo "  Set it to an S3/GCS URL pointing to a tarball of data/ artifacts, or"
-        echo "  run 'make extract KEISLER_SOURCE_DIR=/path/to/keisler-2022' locally"
+        echo "  run 'make extract WEATHERGRAPH_SOURCE_DIR=/path/to/keisler-2022' locally"
         echo "  and upload the resulting data/ directory."
         exit 1
       fi
@@ -103,7 +103,7 @@ convert:onnx:
     - make convert
   artifacts:
     paths:
-      - models/keisler_full_engine.onnx
+      - models/weather_gnn.onnx
     expire_in: 30 days
   rules:
     - if: '$CI_COMMIT_BRANCH == "model-update"'
@@ -126,8 +126,8 @@ build:cpp:
     - make build
   artifacts:
     paths:
-      - keisler_engine/core/keisler_cpp_backend.so
-      - keisler_engine/core/libonnxruntime*
+      - weathergraph/core/weathergraph_backend.so
+      - weathergraph/core/libonnxruntime*
     expire_in: 7 days
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push"'

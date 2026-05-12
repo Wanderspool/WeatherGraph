@@ -7,7 +7,7 @@
 
 namespace py = pybind11;
 
-class KeislerModel {
+class WeatherGraphModel {
 private:
     Ort::Env env;
     std::unique_ptr<Ort::Session> session;
@@ -16,8 +16,8 @@ private:
     std::string output_name;
 
 public:
-    KeislerModel(const std::string& model_path)
-        : env(ORT_LOGGING_LEVEL_WARNING, "KeislerEnv"),
+    WeatherGraphModel(const std::string& model_path)
+        : env(ORT_LOGGING_LEVEL_WARNING, "WeatherGraphEnv"),
           memory_info(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)) {
         
         Ort::SessionOptions session_options;
@@ -87,8 +87,8 @@ public:
     }
 };
 
-PYBIND11_MODULE(keisler_cpp_backend, m) {
-    py::class_<KeislerModel>(m, "KeislerEngine")
+PYBIND11_MODULE(weathergraph_backend, m) {
+    py::class_<WeatherGraphModel>(m, "WeatherGraphEngine")
         .def(py::init<const std::string&>())
-        .def("predict", &KeislerModel::predict);
+        .def("predict", &WeatherGraphModel::predict);
 }

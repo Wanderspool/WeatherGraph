@@ -6,8 +6,8 @@ import psutil
 import onnx
 import onnx.helper as helper
 from onnx import TensorProto
-from keisler_engine import GraphWeatherModel
-import keisler_cpp_backend
+from weathergraph import WeatherGraphModel
+import weathergraph_backend
 
 def create_dummy_onnx(path):
     input_tensor = helper.make_tensor_value_info('input', TensorProto.FLOAT, [1, 71042, 78])
@@ -24,7 +24,7 @@ def mock_engine():
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "dummy_model.onnx")
         create_dummy_onnx(model_path)
-        yield keisler_cpp_backend.KeislerEngine(model_path)
+        yield weathergraph_backend.WeatherGraphEngine(model_path)
 
 def test_engine_inference_zero_copy(mock_engine):
     """Verifies that the engine performs inference correctly and returns expected shapes."""

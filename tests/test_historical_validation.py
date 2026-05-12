@@ -2,7 +2,7 @@ import os
 import sys
 import numpy as np
 import pytest
-from keisler_engine import GraphWeatherModel
+from weathergraph import WeatherGraphModel
 
 # 10 Real Historical Meteorological Events for Hindcast Validation
 EVENTS = [
@@ -24,7 +24,7 @@ def real_environment():
     Ensures that the real ONNX model and real ERA5 data directories exist.
     If they don't, the entire test suite is skipped with a clear explanation.
     """
-    model_path = os.getenv("KEISLER_ONNX_MODEL", "models/keisler_full_engine.onnx")
+    model_path = os.getenv("WEATHERGRAPH_ONNX_MODEL", "models/weather_gnn.onnx")
     weights_dir = os.getenv("KEISLER_WEIGHTS_DIR", "exporter")
     data_dir = os.getenv("ERA5_DATA_DIR", "data/era5_archives")
 
@@ -41,11 +41,11 @@ def calculate_rmse(prediction, ground_truth):
 
 def test_hindcast_validation_suite(real_environment):
     """
-    Validates that the GraphWeatherModel can process 40 autoregressive steps
+    Validates that the WeatherGraphModel can process 40 autoregressive steps
     for multiple independent real-world scenarios and compares them against ground truth.
     """
     model_path, weights_dir, data_dir = real_environment
-    model = GraphWeatherModel(model_path=model_path, weights_dir=weights_dir)
+    model = WeatherGraphModel(model_path=model_path, weights_dir=weights_dir)
     
     STEPS_10_DAYS = 40 
     import xarray as xr

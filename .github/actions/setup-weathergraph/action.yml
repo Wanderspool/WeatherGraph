@@ -1,0 +1,71 @@
+name: Setup WeatherGraph Engine
+description: >
+  Builds the WeatherGraph C++ ONNX inference backend into the active Python
+  environment. Discovers Python and pybind11 from the current PATH — no
+  hardcoded venv paths, works with any Python installed via setup-python.
+
+inputs:
+  onnxruntime-version:
+    description: ONNX Runtime version
+    required: false
+    default: '1.18.0'
+  onnxruntime-platform:
+    description: ONNX Runtime platform string
+    required: false
+    default: 'linux-x64'
+
+outputs:
+  core-dir:
+    description: >
+      Absolute path to weathergraph/core/ — add to LD_LIBRARY_PATH so
+      libonnxruntime.so is found at runtime.
+    value: ${{ steps.build.outputs.core-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install system build dependencies
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends cmake g++
+
+    - name: Cache ONNX Runtime SDK
+      id: cache-ort
+      uses: actions/cache@v4
+      with:
+        path: onnxruntime-sdk/lib
+        key: onnxruntime-${{ inputs.onnxruntime-version }}-${{ inputs.onnxruntime-platform }}
+
+    - name: Download ONNX Runtime SDK
+      if: steps.cache-ort.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        make onnxruntime \
+          ONNXRUNTIME_VERSION=${{ inputs.onnxruntime-version }} \
+          ONNXRUNTIME_PLATFORM=${{ inputs.onnxruntime-platform }}
+
+    - name: Install pybind11 into current Python
+      shell: bash
+      run: pip install --quiet "pybind11>=2.13.0"
+
+    - name: Build C++ backend
+      id: build
+      shell: bash
+      run: |
+        # Resolve pybind11 cmake config dir from the pip-installed package.
+        # This is the canonical path that find_package(pybind11 CONFIG REQUIRED)
+        # searches — no venv creation, no hardcoded paths.
+        PYBIND11_CMAKE=$(python3 -c "import pybind11; print(pybind11.get_cmake_dir())")
+
+        cmake -S . -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -Dpybind11_DIR="$PYBIND11_CMAKE"
+
+        cmake --build build --parallel "$(nproc)"
+
+        mkdir -p weathergraph/core
+        cp build/weathergraph_backend.so weathergraph/core/
+        cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+
+        echo "core-dir=$(pwd)/weathergraph/core" >> "$GITHUB_OUTPUT"

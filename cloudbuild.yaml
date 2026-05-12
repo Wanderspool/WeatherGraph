@@ -9,7 +9,7 @@
 #        gcloud services enable cloudbuild.googleapis.com artifactregistry.googleapis.com
 #
 #   2. Create Artifact Registry repository:
-#        gcloud artifacts repositories create keisler-engine \
+#        gcloud artifacts repositories create weathergraph \
 #          --repository-format=docker \
 #          --location=us-central1
 #
@@ -21,15 +21,15 @@
 #   4. Connect GitHub repo and create trigger in the Cloud Build console,
 #      or via gcloud:
 #        gcloud builds triggers create github \
-#          --repo-name=keisler-engine \
+#          --repo-name=weathergraph \
 #          --repo-owner=<org> \
 #          --branch-pattern="^main$" \
 #          --build-config=cloudbuild.yaml
 #
 # Substitution variables (override in trigger or --substitutions flag):
 #   _REGION  : Artifact Registry region   (default: us-central1)
-#   _REPO    : Artifact Registry repo name (default: keisler-engine)
-#   _IMAGE   : Docker image name           (default: keisler-engine)
+#   _REPO    : Artifact Registry repo name (default: weathergraph)
+#   _IMAGE   : Docker image name           (default: weathergraph)
 # =============================================================================
 
 steps:
@@ -41,7 +41,7 @@ steps:
     args:
       - build
       - --target=test
-      - --tag=keisler-engine:test-${SHORT_SHA}
+      - --tag=weathergraph:test-${SHORT_SHA}
       # Pull the previous test image to use as a layer cache
       - --cache-from=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:test-cache
       - --build-arg=BUILDKIT_INLINE_CACHE=1
@@ -56,7 +56,7 @@ steps:
     waitFor: ["build-test-image"]
     args:
       - tag
-      - keisler-engine:test-${SHORT_SHA}
+      - weathergraph:test-${SHORT_SHA}
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:test-cache
 
   - name: "gcr.io/cloud-builders/docker"
@@ -76,7 +76,7 @@ steps:
       - --target=production
       - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:${SHORT_SHA}
       - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE}:latest
-      - --cache-from=keisler-engine:test-${SHORT_SHA}
+      - --cache-from=weathergraph:test-${SHORT_SHA}
       - --build-arg=BUILDKIT_INLINE_CACHE=1
       - .
     env:
@@ -99,8 +99,8 @@ images:
 # Substitution defaults (override per trigger or via --substitutions)
 substitutions:
   _REGION: us-central1
-  _REPO: keisler-engine
-  _IMAGE: keisler-engine
+  _REPO: weathergraph
+  _IMAGE: weathergraph
 
 options:
   # E2_HIGHCPU_8 gives 8 vCPUs for parallel CMake builds, keeping costs low

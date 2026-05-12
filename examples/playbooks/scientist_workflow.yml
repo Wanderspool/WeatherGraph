@@ -1,0 +1,118 @@
+# ==============================================================================
+# Keisler Engine — Scientist Playbook Template
+#
+# Copy this file to .github/workflows/validate-my-model.yml in YOUR repository.
+# Uncomment the job that matches how your model is stored and customize the
+# parameters in the "Configure" block.
+#
+# All four options use the same reusable pipeline — the engine build, ONNX
+# Runtime setup, and test execution are handled automatically.
+# ==============================================================================
+name: Validate My Weather Model
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'models/**'
+      - 'scripts/export_*.py'
+      - 'checkpoints/**'
+
+jobs:
+
+  # ============================================================================
+  # OPTION A — Pre-built ONNX from any URL
+  #
+  # Works with HuggingFace, S3, your own HTTP server, or GitHub Releases.
+  # Nothing else needed in your repo.
+  # ============================================================================
+  validate-from-url:
+    name: Validate pre-built ONNX
+    uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+    with:
+      model-source: onnx
+      # ── Configure ────────────────────────────────────────────────────────────
+      model-url: 'https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx'
+      # Other examples:
+      #   model-url: 'https://my-bucket.s3.amazonaws.com/models/my_gnn.onnx'
+      #   model-url: 'https://github.com/MyOrg/MyRepo/releases/download/v1.0/model.onnx'
+      # ─────────────────────────────────────────────────────────────────────────
+
+  # ============================================================================
+  # OPTION B — Convert from PyTorch (torch.onnx.export)
+  #
+  # Your script (scripts/export_pytorch.py) must accept --output <path> and
+  # write a valid ONNX file there. Minimal template:
+  #
+  #   import argparse, torch
+  #   from my_package import MyGNN
+  #
+  #   parser = argparse.ArgumentParser()
+  #   parser.add_argument('--checkpoint', required=True)
+  #   parser.add_argument('--output', required=True)
+  #   args = parser.parse_args()
+  #
+  #   model = MyGNN()
+  #   model.load_state_dict(torch.load(args.checkpoint, map_location='cpu'))
+  #   model.eval()
+  #
+  #   dummy = torch.zeros(1, 71042, 78)
+  #   torch.onnx.export(
+  #       model, dummy, args.output, opset_version=17,
+  #       input_names=['input'], output_names=['output'],
+  #       dynamic_axes={'input': {0: 'batch'}, 'output': {0: 'batch'}},
+  #   )
+  # ============================================================================
+  # validate-pytorch:
+  #   name: Validate PyTorch model
+  #   uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+  #   with:
+  #     model-source: script
+  #     # ── Configure ──────────────────────────────────────────────────────────
+  #     model-script: 'scripts/export_pytorch.py'
+  #     model-script-args: '--checkpoint checkpoints/my_model.pt'
+  #     model-pip-requirements: 'torch==2.3.0'
+  #     # ───────────────────────────────────────────────────────────────────────
+
+  # ============================================================================
+  # OPTION C — Build the Keisler ONNX from the repo's extractor scripts
+  #
+  # Uses exporter/build_gnn_graph.py which reads data/weights/*.npy and
+  # data/graph_data/ (both Git LFS objects, checked out automatically).
+  # No external model source needed — everything is in the repo.
+  # ============================================================================
+  # validate-keisler-built:
+  #   name: Validate built-from-source Keisler ONNX
+  #   uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+  #   with:
+  #     model-source: script
+  #     model-script: 'exporter/build_gnn_graph.py'
+  #     model-pip-requirements: 'numpy onnx onnxscript'
+
+  # ============================================================================
+  # OPTION D — Convert from TensorFlow / Keras (tf2onnx)
+  #
+  # Wrap tf2onnx in a small script that accepts --output:
+  #
+  #   import argparse, subprocess, sys
+  #   parser = argparse.ArgumentParser()
+  #   parser.add_argument('--saved-model', required=True)
+  #   parser.add_argument('--output', required=True)
+  #   args = parser.parse_args()
+  #   subprocess.run([
+  #       sys.executable, '-m', 'tf2onnx.convert',
+  #       '--saved-model', args.saved_model,
+  #       '--output', args.output,
+  #       '--opset', '17',
+  #   ], check=True)
+  # ============================================================================
+  # validate-tensorflow:
+  #   name: Validate TensorFlow model
+  #   uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+  #   with:
+  #     model-source: script
+  #     # ── Configure ──────────────────────────────────────────────────────────
+  #     model-script: 'scripts/export_tensorflow.py'
+  #     model-script-args: '--saved-model models/my_saved_model'
+  #     model-pip-requirements: 'tensorflow tf2onnx'
+  #     # ───────────────────────────────────────────────────────────────────────

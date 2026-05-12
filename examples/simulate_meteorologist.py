@@ -6,9 +6,9 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'keisler_engine/core'))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'weathergraph/core'))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from keisler_engine import GraphWeatherModel
+from weathergraph import WeatherGraphModel
 
 def verify_environment(model_path, weights_dir, data_dir):
     """Strictly verifies that the REAL model and REAL data directories exist."""
@@ -34,7 +34,7 @@ def verify_environment(model_path, weights_dir, data_dir):
 
 
 def run_real_simulations():
-    MODEL_PATH = os.getenv("KEISLER_ONNX_MODEL", "models/keisler_full_engine.onnx")
+    MODEL_PATH = os.getenv("WEATHERGRAPH_ONNX_MODEL", "models/weather_gnn.onnx")
     WEIGHTS_DIR = os.getenv("KEISLER_WEIGHTS_DIR", "data")
     ERA5_DATA_DIR = os.getenv("ERA5_DATA_DIR", "data/era5_archives")
 
@@ -42,7 +42,7 @@ def run_real_simulations():
     
     print("[+] Initializing High-Performance C++/ONNX Engine...")
     try:
-        model = GraphWeatherModel(model_path=MODEL_PATH, weights_dir=WEIGHTS_DIR)
+        model = WeatherGraphModel(model_path=MODEL_PATH, weights_dir=WEIGHTS_DIR)
     except Exception as e:
         print(f"\n[CRITICAL ERROR] C++ Engine failed to load the model: {e}")
         sys.exit(1)

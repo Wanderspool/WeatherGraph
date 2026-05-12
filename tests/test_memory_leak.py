@@ -6,7 +6,7 @@ import psutil
 import onnx
 import onnx.helper as helper
 from onnx import TensorProto
-import keisler_cpp_backend
+import weathergraph_backend
 
 def create_dummy_onnx(path):
     input_tensor = helper.make_tensor_value_info('input', TensorProto.FLOAT, [1, 71042, 78])
@@ -30,7 +30,7 @@ def test_memory_leak_infinite_rollout():
         process = psutil.Process(os.getpid())
         
         # Initialize engine and allocate buffer
-        engine = keisler_cpp_backend.KeislerEngine(model_path)
+        engine = weathergraph_backend.WeatherGraphEngine(model_path)
         input_data = np.random.randn(1, 71042, 78).astype(np.float32)
         
         ITERATIONS = 1000

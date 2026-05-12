@@ -1,0 +1,139 @@
+# ==============================================================================
+# WeatherGraph — GCP Batch Job
+#
+# Runs the complete forecast pipeline as a GCP Batch job on a fully-managed
+# container. No persistent VM to manage — the job spins up, runs, and exits.
+#
+# Prerequisites
+# ─────────────
+#   gcloud services enable batch.googleapis.com storage.googleapis.com
+#
+# Submit
+# ──────
+#   gcloud batch jobs submit weathergraph-$(date +%Y%m%d%H%M) \
+#     --location=us-central1 \
+#     --config=gcp-batch-job.yaml
+#
+# Override model / forecast parameters at submit time
+# ────────────────────────────────────────────────────
+#   gcloud batch jobs submit weathergraph-$(date +%Y%m%d%H%M) \
+#     --location=us-central1 \
+#     --config=gcp-batch-job.yaml \
+#     --env MODEL_URL=https://my-bucket.storage.googleapis.com/my_gnn.onnx \
+#     --env INPUT_DATA=gs://my-bucket/era5/2024010100.nc \
+#     --env OUTPUT_BUCKET=gs://my-bucket/forecasts \
+#     --env STEPS=16 \
+#     --env OUTPUT_FMT=zarr
+# ==============================================================================
+
+taskGroups:
+  - taskSpec:
+      runnables:
+        - script:
+            text: |
+              #!/usr/bin/env bash
+              set -euo pipefail
+
+              WG_DIR="/opt/weathergraph"
+              WG_VENV="$WG_DIR/.venv"
+              MODEL_PATH="$WG_DIR/models/weather_gnn.onnx"
+
+              # ── Environment variables with defaults ───────────────────────
+              MODEL_SOURCE="${MODEL_SOURCE:-url}"
+              MODEL_URL="${MODEL_URL:-https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx}"
+              MODEL_SCRIPT="${MODEL_SCRIPT:-}"
+              MODEL_SCRIPT_ARGS="${MODEL_SCRIPT_ARGS:-}"
+              MODEL_SCRIPT_PIP="${MODEL_SCRIPT_PIP:-}"
+              INPUT_DATA="${INPUT_DATA:-}"
+              OUTPUT_DIR="${OUTPUT_DIR:-/tmp/weathergraph_out}"
+              OUTPUT_BUCKET="${OUTPUT_BUCKET:-}"
+              STEPS="${STEPS:-40}"
+              OUTPUT_FMT="${OUTPUT_FMT:-netcdf4}"
+              T0="${T0:-}"
+
+              # ── 1. Dependencies ───────────────────────────────────────────
+              apt-get update -qq
+              apt-get install -y --no-install-recommends git cmake g++ curl python3 python3-pip python3-venv
+
+              # ── 2. Clone engine ───────────────────────────────────────────
+              git clone --depth=1 https://github.com/keisler-engine/keisler-engine "$WG_DIR"
+              cd "$WG_DIR"
+
+              # ── 3. Python environment ─────────────────────────────────────
+              python3 -m venv "$WG_VENV"
+              "$WG_VENV/bin/pip" install --quiet --upgrade pip \
+                "pybind11>=2.13.0" numpy xarray pandas dask netCDF4 zarr onnx
+
+              # ── 4. ONNX Runtime ───────────────────────────────────────────
+              make onnxruntime
+
+              # ── 5. Build C++ backend ──────────────────────────────────────
+              PYBIND11_CMAKE=$("$WG_VENV/bin/python" -c "import pybind11; print(pybind11.get_cmake_dir())")
+              cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_CMAKE"
+              cmake --build build --parallel "$(nproc)"
+              mkdir -p weathergraph/core
+              cp build/weathergraph_backend.so weathergraph/core/
+              cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+
+              # ── 6. Acquire model ──────────────────────────────────────────
+              mkdir -p "$(dirname "$MODEL_PATH")"
+              if [ "$MODEL_SOURCE" = "url" ]; then
+                curl -fSL "$MODEL_URL" --output "$MODEL_PATH"
+              elif [ "$MODEL_SOURCE" = "script" ]; then
+                [ -n "$MODEL_SCRIPT_PIP" ] && "$WG_VENV/bin/pip" install --quiet $MODEL_SCRIPT_PIP
+                "$WG_VENV/bin/python" "$WG_DIR/$MODEL_SCRIPT" $MODEL_SCRIPT_ARGS --output "$MODEL_PATH"
+              fi
+
+              "$WG_VENV/bin/python" -c "
+              import onnx; m = onnx.load('$MODEL_PATH');
+              onnx.checker.check_model(m);
+              print('[validate] OK opset', m.opset_import[0].version)"
+
+              # ── 7. Run forecast ───────────────────────────────────────────
+              if [ -n "$INPUT_DATA" ]; then
+                INPUT_LOCAL="/tmp/wg_input.nc"
+                [[ "$INPUT_DATA" == gs://* ]] && gsutil cp "$INPUT_DATA" "$INPUT_LOCAL" || INPUT_LOCAL="$INPUT_DATA"
+
+                export LD_LIBRARY_PATH="$WG_DIR/weathergraph/core:$LD_LIBRARY_PATH"
+                export PYTHONPATH="$WG_DIR"
+
+                "$WG_VENV/bin/python" -c "
+              import xarray as xr
+              from weathergraph import WeatherGraphModel
+              model = WeatherGraphModel(model_path='$MODEL_PATH', weights_dir='$WG_DIR/data')
+              ds = xr.open_dataset('$INPUT_LOCAL')
+              kw = dict(steps=int('$STEPS'), output_path='$OUTPUT_DIR', fmt='$OUTPUT_FMT')
+              if '$T0': kw['t0'] = '$T0'
+              model.forecast_export(ds, **kw)
+              "
+
+                [ -n "$OUTPUT_BUCKET" ] && gsutil -m cp -r "$OUTPUT_DIR/" "$OUTPUT_BUCKET/"
+                echo "[wg] Done. Results at ${OUTPUT_BUCKET:-$OUTPUT_DIR}"
+              fi
+
+      environment:
+        variables:
+          MODEL_SOURCE:      "url"
+          MODEL_URL:         "https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx"
+          MODEL_SCRIPT:      ""
+          MODEL_SCRIPT_ARGS: ""
+          MODEL_SCRIPT_PIP:  ""
+          INPUT_DATA:        ""
+          OUTPUT_DIR:        "/tmp/weathergraph_out"
+          OUTPUT_BUCKET:     ""
+          STEPS:             "40"
+          OUTPUT_FMT:        "netcdf4"
+          T0:                ""
+
+    taskCount: 1
+    parallelism: 1
+
+allocationPolicy:
+  instances:
+    - policy:
+        machineType: e2-standard-2
+        # Use spot VMs to minimize cost — remove for guaranteed capacity
+        provisioningModel: SPOT
+
+logsPolicy:
+  destination: CLOUD_LOGGING

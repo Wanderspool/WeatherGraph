@@ -3,6 +3,7 @@ import onnx
 import onnxscript
 from onnxscript import opset18 as op
 import os
+import argparse
 
 # --- Concrete GNN Ops for the Engine ---
 
@@ -38,7 +39,7 @@ def build_full_graph(weights_dir, graph_dir, out_path):
     stds_val = np.load("data/stds.npy").astype(np.float32)[:78]
 
     @onnxscript.script(default_opset=op)
-    def keisler_engine(
+    def weathergraph_engine(
         input_data: onnxscript.FLOAT[1, 71042, 78]
     ):
         # --- Pre-processing ---
@@ -87,9 +88,14 @@ def build_full_graph(weights_dir, graph_dir, out_path):
         # For this prototype, we return the latent nodes as a proof of concept
         return latent_nodes
 
-    model_proto = keisler_engine.to_model_proto()
+    model_proto = weathergraph_engine.to_model_proto()
     onnx.save(model_proto, out_path)
     print("Export successful.")
 
 if __name__ == "__main__":
-    build_full_graph("data/weights", "data/graph_data", "models/keisler_full_engine.onnx")
+    parser = argparse.ArgumentParser(description="Build WeatherGraph ONNX from extracted data artifacts.")
+    parser.add_argument("--weights-dir", default="data/weights", help="Path to extracted weights directory")
+    parser.add_argument("--graph-dir",   default="data/graph_data", help="Path to extracted graph data directory")
+    parser.add_argument("--output",      default="models/weather_gnn.onnx", help="Output .onnx file path")
+    args = parser.parse_args()
+    build_full_graph(args.weights_dir, args.graph_dir, args.output)

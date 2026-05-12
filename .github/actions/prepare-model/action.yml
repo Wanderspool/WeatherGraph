@@ -1,0 +1,129 @@
+name: Prepare ONNX Model
+description: >
+  Acquires or produces a model in ONNX format. Two modes:
+
+    onnx   — downloads a pre-built .onnx from any HTTPS URL
+             (HuggingFace, S3, personal server, GitHub Releases, etc.)
+
+    script — runs a user-supplied Python script that writes the ONNX file.
+             The script receives --output <path> as its final argument.
+             Use this for PyTorch, JAX, TensorFlow, or any other framework.
+
+inputs:
+  source:
+    description: '"onnx" to download a pre-built model, or "script" to run a conversion script'
+    required: true
+
+  url:
+    description: >
+      Full HTTPS URL of a pre-built ONNX model.
+      Used when source is "onnx".
+      Examples:
+        https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx
+        https://my-bucket.s3.amazonaws.com/models/graphcast.onnx
+        https://github.com/MyOrg/Repo/releases/download/v1.0/model.onnx
+    required: false
+    default: ''
+
+  script:
+    description: >
+      Repo-relative path to a Python script that writes the ONNX model.
+      The action appends --output <output-path> when calling it.
+      The script must accept --output as a CLI argument.
+      Used when source is "script".
+    required: false
+    default: ''
+
+  script-args:
+    description: >
+      Additional arguments passed to the script (inserted before --output).
+      Example: '--checkpoint weights/my_model.pt --opset 17'
+    required: false
+    default: ''
+
+  pip-requirements:
+    description: >
+      Space-separated pip packages required by the conversion script.
+      Installed before the script runs.
+      Examples:
+        "torch==2.3.0"
+        "torch graph-weather"
+        "tensorflow tf2onnx"
+        "numpy onnx onnxscript"
+    required: false
+    default: ''
+
+  output-path:
+    description: Path (relative to repo root) where the .onnx file will be written.
+    required: false
+    default: 'models/model.onnx'
+
+outputs:
+  model-path:
+    description: Absolute path to the validated ONNX file.
+    value: ${{ steps.resolve.outputs.model-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      run: |
+        SOURCE="${{ inputs.source }}"
+        if [ "$SOURCE" != "onnx" ] && [ "$SOURCE" != "script" ]; then
+          echo "::error::prepare-model: source must be 'onnx' or 'script', got '$SOURCE'"
+          exit 1
+        fi
+        if [ "$SOURCE" = "onnx" ] && [ -z "${{ inputs.url }}" ]; then
+          echo "::error::prepare-model: 'url' is required when source is 'onnx'"
+          exit 1
+        fi
+        if [ "$SOURCE" = "script" ] && [ -z "${{ inputs.script }}" ]; then
+          echo "::error::prepare-model: 'script' is required when source is 'script'"
+          exit 1
+        fi
+
+    - name: Install conversion dependencies
+      if: inputs.pip-requirements != ''
+      shell: bash
+      run: pip install --quiet ${{ inputs.pip-requirements }}
+
+    # ── Path A: download a pre-built ONNX ─────────────────────────────────────
+    - name: "[onnx] Download from URL"
+      if: inputs.source == 'onnx'
+      shell: bash
+      run: |
+        mkdir -p "$(dirname '${{ inputs.output-path }}')"
+        curl -fSL "${{ inputs.url }}" --output "${{ inputs.output-path }}"
+        echo "[prepare-model] Downloaded $(du -sh '${{ inputs.output-path }}' | cut -f1)"
+
+    # ── Path B: run a user-provided conversion script ─────────────────────────
+    - name: "[script] Run conversion script"
+      if: inputs.source == 'script'
+      shell: bash
+      run: |
+        mkdir -p "$(dirname '${{ inputs.output-path }}')"
+        python3 "${{ inputs.script }}" ${{ inputs.script-args }} --output "${{ inputs.output-path }}"
+        echo "[prepare-model] Script produced $(du -sh '${{ inputs.output-path }}' | cut -f1)"
+
+    # ── Validate the result ────────────────────────────────────────────────────
+    - name: Validate ONNX model
+      shell: bash
+      run: |
+        python3 - <<'EOF'
+        import onnx, sys
+        path = "${{ inputs.output-path }}"
+        try:
+            model = onnx.load(path)
+            onnx.checker.check_model(model)
+            opset = model.opset_import[0].version
+            print(f"[validate] OK — IR v{model.ir_version}, opset {opset}")
+        except Exception as e:
+            print(f"::error::ONNX validation failed: {e}", file=sys.stderr)
+            sys.exit(1)
+        EOF
+
+    - name: Resolve absolute path
+      id: resolve
+      shell: bash
+      run: echo "model-path=$(realpath '${{ inputs.output-path }}')" >> "$GITHUB_OUTPUT"

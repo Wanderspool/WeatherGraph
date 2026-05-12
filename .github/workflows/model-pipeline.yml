@@ -1,0 +1,193 @@
+# ==============================================================================
+# Keisler Weather Engine — Reusable Model CI Pipeline
+#
+# Validates the engine against any ONNX model — pre-built or freshly converted.
+#
+# ── How scientists use this ───────────────────────────────────────────────────
+#
+# From your own repository's workflow, call this pipeline and tell it where
+# your model comes from. Two source modes:
+#
+#   onnx   — provide a URL to a pre-built .onnx file
+#   script — provide a path to a Python script that produces the .onnx
+#            (the script must accept --output <path>)
+#
+# Example: validate a HuggingFace model
+#
+#   jobs:
+#     validate:
+#       uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+#       with:
+#         model-source: onnx
+#         model-url: https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx
+#
+# Example: convert from PyTorch and validate
+#
+#   jobs:
+#     validate:
+#       uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+#       with:
+#         model-source: script
+#         model-script: scripts/export_pytorch.py
+#         model-script-args: '--checkpoint weights/my_model.pt'
+#         model-pip-requirements: 'torch==2.3.0'
+#
+# Example: build the Keisler ONNX from the repo's own extractor scripts
+#
+#   jobs:
+#     validate:
+#       uses: weathergraph/weathergraph/.github/workflows/model-pipeline.yml@main
+#       with:
+#         model-source: script
+#         model-script: exporter/build_gnn_graph.py
+#         model-pip-requirements: 'numpy onnx onnxscript'
+#
+# ── Manual dispatch ───────────────────────────────────────────────────────────
+# You can also trigger this directly from the GitHub Actions UI or gh CLI:
+#
+#   gh workflow run model-pipeline.yml \
+#     -f model-source=onnx \
+#     -f model-url=https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx
+# ==============================================================================
+name: Model CI Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to use
+        required: false
+        default: '3.11'
+        type: string
+      model-source:
+        description: '"onnx" (provide model-url) or "script" (provide model-script)'
+        required: false
+        default: 'onnx'
+        type: string
+      model-url:
+        description: Pre-built ONNX download URL (when model-source is "onnx")
+        required: false
+        default: 'https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx'
+        type: string
+      model-script:
+        description: Repo-relative path to a conversion script (when model-source is "script")
+        required: false
+        default: ''
+        type: string
+      model-script-args:
+        description: Extra CLI arguments for the conversion script
+        required: false
+        default: ''
+        type: string
+      model-pip-requirements:
+        description: Space-separated pip packages required by the conversion script
+        required: false
+        default: ''
+        type: string
+      extra-test-args:
+        description: Extra pytest arguments appended to the test run
+        required: false
+        default: ''
+        type: string
+
+  workflow_dispatch:
+    inputs:
+      model-source:
+        description: Model source
+        required: true
+        default: 'onnx'
+        type: choice
+        options: [onnx, script]
+      model-url:
+        description: >
+          Pre-built ONNX download URL.
+          Used when model-source = "onnx".
+          Default points to the Keisler_2022 ONNX on HuggingFace.
+        required: false
+        default: 'https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx'
+        type: string
+      model-script:
+        description: >
+          Repo-relative path to a Python conversion script.
+          Used when model-source = "script".
+          The script must accept --output <path>.
+        required: false
+        default: ''
+        type: string
+      model-script-args:
+        description: Extra CLI arguments for the conversion script
+        required: false
+        default: ''
+        type: string
+      model-pip-requirements:
+        description: Space-separated pip packages required by the script
+        required: false
+        default: ''
+        type: string
+
+env:
+  ONNXRUNTIME_VERSION: '1.18.0'
+
+jobs:
+  model-ci:
+    name: "[${{ inputs.model-source }}] Build → Convert → Test"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # LFS is required when using exporter/build_gnn_graph.py — the
+          # data/weights/*.npy and data/graph_data/ files are Git LFS objects.
+          lfs: true
+
+      - name: Set up Python ${{ inputs.python-version || '3.11' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version || '3.11' }}
+
+      - name: Install Python runtime dependencies
+        run: |
+          pip install --quiet \
+            numpy xarray pandas dask netCDF4 \
+            pytest psutil memory-profiler onnx
+
+      # ── Build the C++ engine ─────────────────────────────────────────────────
+      - name: Build Keisler Engine
+        id: engine
+        uses: ./.github/actions/setup-weathergraph
+        with:
+          onnxruntime-version: ${{ env.ONNXRUNTIME_VERSION }}
+
+      # ── Acquire / convert the model ──────────────────────────────────────────
+      - name: Prepare model
+        id: model
+        uses: ./.github/actions/prepare-model
+        with:
+          source: ${{ inputs.model-source }}
+          url: ${{ inputs.model-url }}
+          script: ${{ inputs.model-script }}
+          script-args: ${{ inputs.model-script-args }}
+          pip-requirements: ${{ inputs.model-pip-requirements }}
+          output-path: models/weather_gnn.onnx
+
+      # ── Run test suite ───────────────────────────────────────────────────────
+      - name: Run test suite
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+          WEATHERGRAPH_ONNX_MODEL: ${{ steps.model.outputs.model-path }}
+        run: |
+          pytest \
+            tests/test_cpp_backend.py \
+            tests/test_memory_leak.py \
+            -v --tb=short --junit-xml=test-results.xml \
+            ${{ inputs.extra-test-args || '' }}
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.model-source }}-${{ github.run_id }}
+          path: test-results.xml
+          retention-days: 7

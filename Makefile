@@ -24,8 +24,8 @@ ONNXRUNTIME_TARBALL  = onnxruntime-$(ONNXRUNTIME_PLATFORM)-$(ONNXRUNTIME_VERSION
 ONNXRUNTIME_URL      = https://github.com/microsoft/onnxruntime/releases/download/v$(ONNXRUNTIME_VERSION)/$(ONNXRUNTIME_TARBALL)
 
 BUILD_DIR     = build
-MODEL_OUT     = models/keisler_full_engine.onnx
-SO_OUT        = keisler_engine/core/keisler_cpp_backend.so
+MODEL_OUT     = models/weather_gnn.onnx
+SO_OUT        = weathergraph/core/weathergraph_backend.so
 
 .PHONY: all onnxruntime extract convert build test clean help
 
@@ -64,7 +64,7 @@ extract:  ## Extract weights & graph topology from KEISLER_SOURCE_DIR into data/
 	@echo "[extract] Done."
 
 # ------------------------------------------------------------------------------
-convert: data/weights data/graph_data  ## Build ONNX graph → models/keisler_full_engine.onnx
+convert: data/weights data/graph_data  ## Build ONNX graph → models/weather_gnn.onnx
 # ------------------------------------------------------------------------------
 	@echo "[convert] Building ONNX graph..."
 	$(PYTHON) exporter/build_gnn_graph.py
@@ -78,9 +78,9 @@ build: onnxruntime-sdk/lib/libonnxruntime.so $(MODEL_OUT)  ## Compile C++ pybind
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
 	@echo "[build] Compiling..."
 	cmake --build $(BUILD_DIR) --parallel
-	@echo "[build] Copying .so into keisler_engine/core/"
-	@cp $(BUILD_DIR)/keisler_cpp_backend.so $(SO_OUT)
-	@cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+	@echo "[build] Copying .so into weathergraph/core/"
+	@cp $(BUILD_DIR)/weathergraph_backend.so $(SO_OUT)
+	@cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
 	@echo "[build] Done. Backend: $(SO_OUT)"
 
 # ------------------------------------------------------------------------------
@@ -95,7 +95,7 @@ clean:  ## Remove all generated files (data artifacts, build dir, .so, .onnx)
 	rm -rf $(BUILD_DIR)
 	rm -rf data/weights data/graph_data data/means.npy data/stds.npy
 	rm -f  $(MODEL_OUT)
-	rm -f  $(SO_OUT) keisler_engine/core/libonnxruntime*
+	rm -f  $(SO_OUT) weathergraph/core/libonnxruntime*
 	@echo "[clean] Done."
 
 # ------------------------------------------------------------------------------

@@ -3,11 +3,11 @@ requires = ["scikit-build-core>=0.10.0", "pybind11>=2.13.0"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "keisler-engine"
+name = "weathergraph"
 version = "0.1.0"
-description = "High-performance C++/ONNX weather prediction engine"
+description = "Universal high-performance C++/ONNX engine for graph-based weather models"
 readme = "README.md"
-authors = [{ name = "Keisler Engine Team" }]
+authors = [{ name = "WeatherGraph Team" }]
 license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
@@ -15,7 +15,8 @@ dependencies = [
     "xarray>=2023.0.0",
     "pandas>=2.0.0",
     "dask>=2023.0.0",
-    "netCDF4>=1.6.0"
+    "netCDF4>=1.6.0",
+    "zarr>=2.16.0"
 ]
 
 [project.optional-dependencies]

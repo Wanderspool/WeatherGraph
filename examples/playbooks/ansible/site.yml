@@ -1,0 +1,204 @@
+---
+# ==============================================================================
+# WeatherGraph — Ansible Playbook
+#
+# Runs a complete weather forecast pipeline on any Linux host:
+#   1. Installs system and Python dependencies
+#   2. Builds the C++ engine
+#   3. Downloads/converts the model to ONNX
+#   4. Runs the forecast and exports results
+#
+# Usage
+# ─────
+# 1. Define your inventory (hosts.yml):
+#
+#      all:
+#        hosts:
+#          forecast-node:
+#            ansible_host: 1.2.3.4
+#            ansible_user: ubuntu
+#
+# 2. Run with defaults (HuggingFace Keisler model, 40 steps, NetCDF output):
+#
+#      ansible-playbook -i hosts.yml site.yml
+#
+# 3. Run with a custom model and input data:
+#
+#      ansible-playbook -i hosts.yml site.yml \
+#        -e "model_url=https://my-bucket.s3.amazonaws.com/models/my_gnn.onnx" \
+#        -e "input_data=/data/era5_2024010100.nc" \
+#        -e "output_dir=/results/2024010100" \
+#        -e "steps=16" \
+#        -e "output_fmt=zarr"
+#
+# 4. Use a conversion script instead of a pre-built ONNX:
+#
+#      ansible-playbook -i hosts.yml site.yml \
+#        -e "model_source=script" \
+#        -e "model_script=exporter/build_gnn_graph.py" \
+#        -e "model_script_pip=numpy onnx onnxscript"
+#
+# Variables (all have safe defaults)
+# ────────────────────────────────────────────────────────────────
+#  model_source       "url" | "script"       default: url
+#  model_url          HTTPS .onnx URL        default: HuggingFace Keisler_2022
+#  model_script       repo-relative script   default: ""
+#  model_script_args  CLI args for script    default: ""
+#  model_script_pip   pip packages needed    default: ""
+#  input_data         path to ERA5 .nc file  default: (skip inference)
+#  output_dir         output directory       default: /tmp/weathergraph_out
+#  steps              forecast steps (×6h)   default: 40
+#  output_fmt         netcdf4 | zarr | npz   default: netcdf4
+#  t0                 ISO-8601 start time    default: ""
+# ==============================================================================
+
+- name: WeatherGraph — Weather Forecast Pipeline
+  hosts: all
+  become: false
+
+  vars:
+    wg_repo:           "https://github.com/keisler-engine/keisler-engine"
+    wg_dir:            "/opt/weathergraph"
+    wg_model_path:     "{{ wg_dir }}/models/weather_gnn.onnx"
+    wg_venv:           "{{ wg_dir }}/.venv"
+
+    # ── User-configurable ───────────────────────────────────────
+    model_source:      "url"
+    model_url:         "https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx"
+    model_script:      ""
+    model_script_args: ""
+    model_script_pip:  ""
+    input_data:        ""
+    output_dir:        "/tmp/weathergraph_out"
+    steps:             40
+    output_fmt:        "netcdf4"
+    t0:                ""
+
+  tasks:
+    # ── 1. System dependencies ────────────────────────────────────────────────
+    - name: Install system build dependencies
+      become: true
+      ansible.builtin.package:
+        name: [git, cmake, g++, curl, python3, python3-pip, python3-venv]
+        state: present
+
+    # ── 2. Clone / update the engine repo ────────────────────────────────────
+    - name: Clone WeatherGraph engine
+      ansible.builtin.git:
+        repo:    "{{ wg_repo }}"
+        dest:    "{{ wg_dir }}"
+        version: main
+        depth:   1
+        update:  true
+
+    # ── 3. Python environment ─────────────────────────────────────────────────
+    - name: Create Python venv
+      ansible.builtin.command:
+        cmd:    python3 -m venv {{ wg_venv }}
+        creates: "{{ wg_venv }}/bin/python"
+
+    - name: Install Python runtime dependencies
+      ansible.builtin.pip:
+        virtualenv: "{{ wg_venv }}"
+        name:
+          - "pybind11>=2.13.0"
+          - numpy
+          - xarray
+          - pandas
+          - dask
+          - netCDF4
+          - zarr
+          - onnx
+
+    # ── 4. ONNX Runtime shared library ───────────────────────────────────────
+    - name: Download ONNX Runtime SDK
+      ansible.builtin.shell:
+        cmd:    make onnxruntime
+        chdir:  "{{ wg_dir }}"
+        creates: "{{ wg_dir }}/onnxruntime-sdk/lib/libonnxruntime.so"
+
+    # ── 5. Build C++ backend ──────────────────────────────────────────────────
+    - name: Configure CMake
+      ansible.builtin.shell:
+        cmd: >
+          {{ wg_venv }}/bin/python -c "import pybind11; print(pybind11.get_cmake_dir())"
+          | xargs -I{} cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR={}
+        chdir:  "{{ wg_dir }}"
+        creates: "{{ wg_dir }}/build/Makefile"
+
+    - name: Compile C++ backend
+      ansible.builtin.shell:
+        cmd:    cmake --build build --parallel {{ ansible_processor_nproc | default(2) }}
+        chdir:  "{{ wg_dir }}"
+        creates: "{{ wg_dir }}/build/weathergraph_backend.so"
+
+    - name: Copy .so and ONNX Runtime libs into package
+      ansible.builtin.shell:
+        cmd: |
+          mkdir -p weathergraph/core
+          cp build/weathergraph_backend.so weathergraph/core/
+          cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
+        chdir: "{{ wg_dir }}"
+
+    # ── 6. Acquire model ──────────────────────────────────────────────────────
+    - name: "[url] Download pre-built ONNX model"
+      when: model_source == "url"
+      ansible.builtin.get_url:
+        url:  "{{ model_url }}"
+        dest: "{{ wg_model_path }}"
+        mode: "0644"
+        force: false
+
+    - name: "[script] Install conversion pip packages"
+      when: model_source == "script" and model_script_pip != ""
+      ansible.builtin.pip:
+        virtualenv: "{{ wg_venv }}"
+        name:       "{{ model_script_pip.split() }}"
+
+    - name: "[script] Run conversion script"
+      when: model_source == "script"
+      ansible.builtin.shell:
+        cmd: >
+          {{ wg_venv }}/bin/python {{ wg_dir }}/{{ model_script }}
+          {{ model_script_args }} --output {{ wg_model_path }}
+        chdir: "{{ wg_dir }}"
+        creates: "{{ wg_model_path }}"
+
+    - name: Validate ONNX model
+      ansible.builtin.shell:
+        cmd: >
+          {{ wg_venv }}/bin/python -c "
+          import onnx; m = onnx.load('{{ wg_model_path }}');
+          onnx.checker.check_model(m);
+          print('[validate] OK opset', m.opset_import[0].version)"
+
+    # ── 7. Run forecast ───────────────────────────────────────────────────────
+    - name: Run weather forecast
+      when: input_data != ""
+      ansible.builtin.shell:
+        cmd: |
+          export LD_LIBRARY_PATH={{ wg_dir }}/weathergraph/core:$LD_LIBRARY_PATH
+          export PYTHONPATH={{ wg_dir }}
+          {{ wg_venv }}/bin/python - <<'EOF'
+          import xarray as xr
+          from weathergraph import WeatherGraphModel
+
+          model = WeatherGraphModel(
+              model_path="{{ wg_model_path }}",
+              weights_dir="{{ wg_dir }}/data",
+          )
+          ds = xr.open_dataset("{{ input_data }}")
+          model.forecast_export(
+              ds,
+              steps={{ steps }},
+              output_path="{{ output_dir }}",
+              fmt="{{ output_fmt }}",
+              {% if t0 != "" %}t0="{{ t0 }}",{% endif %}
+          )
+          EOF
+        chdir: "{{ wg_dir }}"
+
+    - name: Show output location
+      when: input_data != ""
+      ansible.builtin.debug:
+        msg: "Forecast written to {{ output_dir }} ({{ steps }} steps × 6h, fmt={{ output_fmt }})"

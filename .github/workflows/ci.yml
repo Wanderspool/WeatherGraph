@@ -26,7 +26,7 @@ jobs:
         run: pip install --quiet ruff
 
       - name: Run ruff
-        run: ruff check keisler_engine/ tests/ exporter/
+        run: ruff check weathergraph/ tests/ exporter/
 
   # ─── Build & Test ────────────────────────────────────────────────────────────
   build-and-test:
@@ -60,30 +60,21 @@ jobs:
         if: steps.cache-onnxruntime.outputs.cache-hit != 'true'
         run: make onnxruntime
 
-      # CMakeLists.txt hardcodes pybind11 at /root/keisler_engine/venv and a
-      # local keisler_engine/venv (for Python include detection). Both are
-      # created here to match the expected paths.
-      - name: Create pybind11 venvs at expected paths
-        run: |
-          sudo mkdir -p /root/keisler_engine
-          sudo python${{ env.PYTHON_VERSION }} -m venv /root/keisler_engine/venv
-          sudo /root/keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
-          python${{ env.PYTHON_VERSION }} -m venv keisler_engine/venv
-          keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
-
-      - name: Install Python test dependencies
+      - name: Install pybind11 and test dependencies
         run: |
           pip install --quiet \
+            "pybind11>=2.13.0" \
             numpy xarray pandas dask netCDF4 \
             pytest psutil memory-profiler onnx
 
       - name: Build C++ backend
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          PYBIND11_CMAKE=$(python3 -c "import pybind11; print(pybind11.get_cmake_dir())")
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_CMAKE"
           cmake --build build --parallel $(nproc)
-          mkdir -p keisler_engine/core
-          cp build/keisler_cpp_backend.so keisler_engine/core/
-          cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+          mkdir -p weathergraph/core
+          cp build/weathergraph_backend.so weathergraph/core/
+          cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
 
       - name: Run unit tests
         run: |
@@ -115,21 +106,17 @@ jobs:
       - name: Download ONNX Runtime SDK
         run: make onnxruntime
 
-      - name: Create pybind11 venvs at expected paths
-        run: |
-          sudo mkdir -p /root/keisler_engine
-          sudo python${{ env.PYTHON_VERSION }} -m venv /root/keisler_engine/venv
-          sudo /root/keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
-          python${{ env.PYTHON_VERSION }} -m venv keisler_engine/venv
-          keisler_engine/venv/bin/pip install --quiet --upgrade pip pybind11
+      - name: Install pybind11
+        run: pip install --quiet "pybind11>=2.13.0"
 
       - name: Build C++ backend
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          PYBIND11_CMAKE=$(python3 -c "import pybind11; print(pybind11.get_cmake_dir())")
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR="$PYBIND11_CMAKE"
           cmake --build build --parallel $(nproc)
-          mkdir -p keisler_engine/core
-          cp build/keisler_cpp_backend.so keisler_engine/core/
-          cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+          mkdir -p weathergraph/core
+          cp build/weathergraph_backend.so weathergraph/core/
+          cp onnxruntime-sdk/lib/libonnxruntime.so* weathergraph/core/
 
       - name: Build wheel
         run: |

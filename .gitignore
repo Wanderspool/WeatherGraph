@@ -19,6 +19,7 @@ onnxruntime-sdk/lib/
 build/
 keisler_engine/core/*.so
 keisler_engine/core/libonnxruntime*
+models/*.onnx
 
 # ===== Exporter intermediates =====
 exporter/dummy_model.onnx
