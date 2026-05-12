@@ -1,0 +1,157 @@
+# ==============================================================================
+# GitLab CI/CD — Keisler Weather Engine
+#
+# Pipeline stages:
+#   1. setup   — download ONNX Runtime shared libraries
+#   2. extract — extract weights & graph topology (requires external model source)
+#   3. convert — build ONNX graph from extracted artifacts
+#   4. build   — compile C++ pybind11 backend
+#   5. test    — run the full test suite
+#
+# NOTE on the "extract" stage:
+#   The original keisler-2022 JAX model is NOT stored in this repository.
+#   On CI, the extracted data artifacts (data/weights/, data/graph_data/,
+#   data/means.npy, data/stds.npy) must be available as a GitLab artifact
+#   from a separate, protected "model-export" pipeline, or injected via a
+#   shared cache / S3 bucket defined in KEISLER_DATA_CACHE_URL.
+#   The extract stage below is skipped on standard MR pipelines and only
+#   runs on the `model-update` branch or when triggered manually.
+# ==============================================================================
+
+default:
+  image: python:3.11-slim
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq cmake build-essential curl git
+
+variables:
+  ONNXRUNTIME_VERSION: "1.18.0"
+  ONNXRUNTIME_PLATFORM: "linux-x64"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+
+cache:
+  key: pip-$CI_COMMIT_REF_SLUG
+  paths:
+    - .pip-cache/
+
+stages:
+  - setup
+  - extract
+  - convert
+  - build
+  - test
+
+# ------------------------------------------------------------------------------
+# 1. SETUP — download & cache ONNX Runtime shared libraries
+# ------------------------------------------------------------------------------
+setup:onnxruntime:
+  stage: setup
+  script:
+    - make onnxruntime
+  artifacts:
+    paths:
+      - onnxruntime-sdk/lib/
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# ------------------------------------------------------------------------------
+# 2. EXTRACT — pull weights & graphs from the original JAX model
+#    Runs only on model-update branch or manual trigger to avoid needing
+#    the external model on every commit.
+# ------------------------------------------------------------------------------
+extract:artifacts:
+  stage: extract
+  script:
+    - pip install numpy --quiet
+    - |
+      if [ -n "$KEISLER_DATA_CACHE_URL" ]; then
+        echo "[extract] Downloading pre-extracted artifacts from cache..."
+        curl -fsSL "$KEISLER_DATA_CACHE_URL/data.tar.gz" | tar -xz
+      else
+        echo "[extract] KEISLER_DATA_CACHE_URL is not set."
+        echo "  Set it to an S3/GCS URL pointing to a tarball of data/ artifacts, or"
+        echo "  run 'make extract KEISLER_SOURCE_DIR=/path/to/keisler-2022' locally"
+        echo "  and upload the resulting data/ directory."
+        exit 1
+      fi
+  artifacts:
+    paths:
+      - data/weights/
+      - data/graph_data/
+      - data/means.npy
+      - data/stds.npy
+    expire_in: 30 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "model-update"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+
+# ------------------------------------------------------------------------------
+# 3. CONVERT — build ONNX graph from extracted data artifacts
+# ------------------------------------------------------------------------------
+convert:onnx:
+  stage: convert
+  needs:
+    - job: extract:artifacts
+      artifacts: true
+    - job: setup:onnxruntime
+      artifacts: false
+  script:
+    - pip install numpy onnx onnxscript --quiet
+    - make convert
+  artifacts:
+    paths:
+      - models/keisler_full_engine.onnx
+    expire_in: 30 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "model-update"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+
+# ------------------------------------------------------------------------------
+# 4. BUILD — compile C++ / pybind11 backend
+# ------------------------------------------------------------------------------
+build:cpp:
+  stage: build
+  needs:
+    - job: setup:onnxruntime
+      artifacts: true
+    - job: convert:onnx
+      artifacts: true
+      optional: true   # allow building against a pre-existing ONNX model
+  script:
+    - pip install pybind11 scikit-build-core --quiet
+    - make build
+  artifacts:
+    paths:
+      - keisler_engine/core/keisler_cpp_backend.so
+      - keisler_engine/core/libonnxruntime*
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# ------------------------------------------------------------------------------
+# 5. TEST — run full validation suite
+# ------------------------------------------------------------------------------
+test:suite:
+  stage: test
+  needs:
+    - job: build:cpp
+      artifacts: true
+  script:
+    - pip install numpy xarray pandas dask netCDF4 pytest psutil memory-profiler --quiet
+    - make test
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+    expire_in: 7 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'

@@ -1,0 +1,114 @@
+# ==============================================================================
+# Keisler Weather Engine — Build Pipeline
+#
+# Prerequisites:
+#   - Python 3.10+ with pip
+#   - CMake >= 3.15
+#   - curl
+#   - Original keisler-2022 model directory at $(KEISLER_SOURCE_DIR)
+#
+# Typical first-time setup:
+#   make all KEISLER_SOURCE_DIR=/path/to/keisler-2022
+#
+# If the source model is already in the default location (../keisler-2022):
+#   make all
+# ==============================================================================
+
+PYTHON        ?= python3
+KEISLER_SOURCE_DIR ?= ../keisler-2022
+
+# ONNX Runtime release to download
+ONNXRUNTIME_VERSION ?= 1.18.0
+ONNXRUNTIME_PLATFORM ?= linux-x64
+ONNXRUNTIME_TARBALL  = onnxruntime-$(ONNXRUNTIME_PLATFORM)-$(ONNXRUNTIME_VERSION).tgz
+ONNXRUNTIME_URL      = https://github.com/microsoft/onnxruntime/releases/download/v$(ONNXRUNTIME_VERSION)/$(ONNXRUNTIME_TARBALL)
+
+BUILD_DIR     = build
+MODEL_OUT     = models/keisler_full_engine.onnx
+SO_OUT        = keisler_engine/core/keisler_cpp_backend.so
+
+.PHONY: all onnxruntime extract convert build test clean help
+
+# ------------------------------------------------------------------------------
+all: extract convert build  ## Full pipeline (extract → convert → build)
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+onnxruntime:  ## Download & unpack ONNX Runtime shared library into onnxruntime-sdk/lib/
+# ------------------------------------------------------------------------------
+	@echo "[onnxruntime] Downloading ONNX Runtime v$(ONNXRUNTIME_VERSION) for $(ONNXRUNTIME_PLATFORM)..."
+	@mkdir -p onnxruntime-sdk/lib
+	@curl -fsSL "$(ONNXRUNTIME_URL)" | tar -xz --strip-components=1 \
+	    -C onnxruntime-sdk \
+	    --wildcards "*/lib/libonnxruntime*"
+	@echo "[onnxruntime] Done. Libraries in onnxruntime-sdk/lib/"
+
+# ------------------------------------------------------------------------------
+extract:  ## Extract weights & graph topology from KEISLER_SOURCE_DIR into data/
+# ------------------------------------------------------------------------------
+	@if [ ! -d "$(KEISLER_SOURCE_DIR)" ]; then \
+	    echo ""; \
+	    echo "[ERROR] Source model directory not found: $(KEISLER_SOURCE_DIR)"; \
+	    echo ""; \
+	    echo "  The original keisler-2022 JAX model must be present to extract weights."; \
+	    echo "  Clone it next to this project, or pass the path explicitly:"; \
+	    echo ""; \
+	    echo "    make extract KEISLER_SOURCE_DIR=/path/to/keisler-2022"; \
+	    echo ""; \
+	    exit 1; \
+	fi
+	@echo "[extract] Extracting weights from $(KEISLER_SOURCE_DIR)..."
+	$(PYTHON) exporter/extract_weights.py --source "$(KEISLER_SOURCE_DIR)" --output data/weights
+	@echo "[extract] Extracting graph topology from $(KEISLER_SOURCE_DIR)..."
+	$(PYTHON) exporter/extract_graphs.py --source "$(KEISLER_SOURCE_DIR)" --output data/graph_data
+	@echo "[extract] Done."
+
+# ------------------------------------------------------------------------------
+convert: data/weights data/graph_data  ## Build ONNX graph → models/keisler_full_engine.onnx
+# ------------------------------------------------------------------------------
+	@echo "[convert] Building ONNX graph..."
+	$(PYTHON) exporter/build_gnn_graph.py
+	@echo "[convert] Model written to $(MODEL_OUT)"
+
+# ------------------------------------------------------------------------------
+build: onnxruntime-sdk/lib/libonnxruntime.so $(MODEL_OUT)  ## Compile C++ pybind11 backend
+# ------------------------------------------------------------------------------
+	@echo "[build] Configuring CMake..."
+	@mkdir -p $(BUILD_DIR)
+	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
+	@echo "[build] Compiling..."
+	cmake --build $(BUILD_DIR) --parallel
+	@echo "[build] Copying .so into keisler_engine/core/"
+	@cp $(BUILD_DIR)/keisler_cpp_backend.so $(SO_OUT)
+	@cp onnxruntime-sdk/lib/libonnxruntime.so* keisler_engine/core/
+	@echo "[build] Done. Backend: $(SO_OUT)"
+
+# ------------------------------------------------------------------------------
+test:  ## Run the test suite
+# ------------------------------------------------------------------------------
+	$(PYTHON) -m pytest tests/ -v
+
+# ------------------------------------------------------------------------------
+clean:  ## Remove all generated files (data artifacts, build dir, .so, .onnx)
+# ------------------------------------------------------------------------------
+	@echo "[clean] Removing generated artifacts..."
+	rm -rf $(BUILD_DIR)
+	rm -rf data/weights data/graph_data data/means.npy data/stds.npy
+	rm -f  $(MODEL_OUT)
+	rm -f  $(SO_OUT) keisler_engine/core/libonnxruntime*
+	@echo "[clean] Done."
+
+# ------------------------------------------------------------------------------
+help:  ## Show this help message
+# ------------------------------------------------------------------------------
+	@echo ""
+	@echo "Keisler Weather Engine — Makefile targets"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | \
+	    awk 'BEGIN {FS = ":.*##"}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "Variables:"
+	@echo "  KEISLER_SOURCE_DIR  Path to the keisler-2022 JAX model (default: ../keisler-2022)"
+	@echo "  PYTHON              Python interpreter to use          (default: python3)"
+	@echo "  ONNXRUNTIME_VERSION ONNX Runtime version to download   (default: $(ONNXRUNTIME_VERSION))"
+	@echo ""

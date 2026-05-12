@@ -1,0 +1,52 @@
+# ===== Generated ONNX models (rebuilt by `make convert`) =====
+models/*.onnx
+!models/.gitkeep
+
+# ===== Extracted data artifacts (rebuilt by `make extract`) =====
+data/weights/
+data/graph_data/
+data/means.npy
+data/stds.npy
+
+# ===== ERA5 input archives (large files, provided by user) =====
+data/era5_archives/
+!data/era5_archives/.gitkeep
+
+# ===== ONNX Runtime SDK shared libraries (downloaded by `make onnxruntime`) =====
+onnxruntime-sdk/lib/
+
+# ===== C++ build artifacts =====
+build/
+keisler_engine/core/*.so
+keisler_engine/core/libonnxruntime*
+
+# ===== Exporter intermediates =====
+exporter/dummy_model.onnx
+exporter/conversion_log.txt
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+.eggs/
+*.egg
+.pytest_cache/
+
+# ===== Virtual environments =====
+venv/
+.venv/
+env/
+keisler_engine/venv/
+
+# ===== IDE & OS =====
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+GEMINI.md

@@ -1,0 +1,75 @@
+import os
+import pickle
+import jax
+import jax.numpy as jnp
+import haiku as hk
+import jraph
+import jax2onnx
+import onnx
+from keisler_2022.runner import Runner
+from keisler_2022.config import Config
+
+def main():
+    print("Initializing Runner...")
+    config = Config()
+    runner = Runner(verbose=True, config=config)
+    
+    # We need dummy input data to initialize the graphs
+    # 1.0 degree grid: 181 latitudes, 360 longitudes
+    # 6 variables, 13 levels = 78 channels
+    n_node_era5 = 181 * 360
+    n_channels = 78
+    
+    # Create dummy initial data
+    dummy_data = jnp.zeros((n_node_era5, n_channels))
+    
+    # We need solar and doy for the steps
+    # Just use zeros for initialization
+    n_steps = 1
+    dummy_solar = jnp.zeros((n_node_era5, n_steps))
+    dummy_doy = jnp.zeros((n_node_era5, n_steps))
+    
+    # Setup graphs
+    graphs = {
+        "e": runner.static_graphs["e"].jraph(),
+        "p": runner.static_graphs["p"].jraph(),
+        "d": runner.static_graphs["d"].jraph(),
+    }
+    
+    graphs["e"].nodes["data"] = runner.init_set(dummy_data)
+    graphs["e"].nodes["all_solar"] = runner.init_set(dummy_solar)
+    graphs["e"].nodes["all_doy"] = runner.init_set(dummy_doy)
+    
+    print("Loading parameters...")
+    # Load model parameters
+    with open(runner.config.resolve_artifact(runner.config.data.weights_file), "rb") as fp:
+        params = pickle.load(fp)
+    params = hk.data_structures.to_immutable_dict(params)
+    
+    # The function we want to export
+    # We'll export a single step
+    def model_fn(graphs, i_time):
+        return runner.transformed.apply(params, graphs, i_time)
+
+    print("Converting to ONNX...")
+    # jax2onnx requires the function and example inputs
+    # Note: Jraph GraphsTuple are named tuples, which jax2onnx might not handle directly
+    # We might need to flatten them
+    
+    # For now, let's try a direct conversion
+    # We might need to use dynamic_shapes if nodes/edges count varies (though here it's static)
+    try:
+        onnx_model = jax2onnx.from_jax(
+            model_fn,
+            (graphs, 0),
+            # dynamic_shapes=... 
+        )
+        
+        print("Saving ONNX model...")
+        onnx.save(onnx_model, "keisler_2022.onnx")
+        print("Success!")
+    except Exception as e:
+        print(f"Failed to convert: {e}")
+
+if __name__ == "__main__":
+    main()
