@@ -108,6 +108,36 @@ variable "t0" {
   default     = ""
 }
 
+variable "intra_op_threads" {
+  description = "ONNX Runtime intra-op thread count"
+  type        = number
+  default     = 1
+}
+
+variable "disable_cpu_mem_arena" {
+  description = "Disable the ONNX Runtime CPU arena allocator to reduce reserved RSS"
+  type        = bool
+  default     = false
+}
+
+variable "disable_mem_pattern" {
+  description = "Disable ONNX Runtime memory-pattern reuse"
+  type        = bool
+  default     = false
+}
+
+variable "spatial_tiling" {
+  description = "Enable exact graph-aware tiled inference (requires tile_bundle_path)"
+  type        = bool
+  default     = false
+}
+
+variable "tile_bundle_path" {
+  description = "Path to a tile-bundle manifest or directory with exact graph partition metadata"
+  type        = string
+  default     = ""
+}
+
 # ── Data source ────────────────────────────────────────────────────────────────
 variable "data_source" {
   description = <<-EOT

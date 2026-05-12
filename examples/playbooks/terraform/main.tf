@@ -63,6 +63,11 @@ locals {
     steps             = var.steps
     output_fmt        = var.output_fmt
     t0                = var.t0
+    intra_op_threads  = var.intra_op_threads
+    disable_cpu_mem_arena = var.disable_cpu_mem_arena
+    disable_mem_pattern = var.disable_mem_pattern
+    spatial_tiling    = var.spatial_tiling
+    tile_bundle_path  = var.tile_bundle_path
   })
 }
 

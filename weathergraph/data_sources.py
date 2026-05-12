@@ -5,11 +5,11 @@ weathergraph.data_sources
 Pluggable data-source adapters for the WeatherGraph engine.
 
 Each adapter exposes a single ``load()`` method that returns an
-``xarray.Dataset`` conforming to the engine's input contract:
+``xarray.Dataset`` conforming to the current reference-model input contract:
 
   Variables  : z, q, t, u, v, w
   Levels (hPa): 50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000
-  Grid        : 181 × 360  (1° ERA5 lat/lon)
+    Grid        : 181 × 360  (1° ERA5 lat/lon for the current reference artifact)
   Coords      : latitude  (-90 … 90),  longitude (0 … 359),  level
 
 Adapters that fetch remote data accept keyword arguments in ``__init__``
@@ -474,7 +474,8 @@ class CustomAdapter(DataSourceAdapter):
     path : str, optional
         Path to the source file. Omit when passing ``data`` directly.
     data : xr.Dataset or np.ndarray, optional
-        Pre-loaded dataset or a raw ``float32[1, 71042, 78]`` array.
+        Pre-loaded dataset or a raw ``float32[1, nodes, 78]`` array for a
+        compatible ONNX artifact.
         When given, ``path`` and ``format`` are ignored.
     format : str, optional
         File format hint when ``path`` is given:
@@ -530,7 +531,7 @@ class CustomAdapter(DataSourceAdapter):
 
     From a pre-built NumPy array (bypasses all file I/O)::
 
-        raw = np.load("my_state.npy")   # shape [1, 71042, 78]
+        raw = np.load("my_state.npy")   # shape [1, nodes, 78]
         adapter = CustomAdapter(data=raw)
 
     From a plain dict schema (useful for config-file driven pipelines)::

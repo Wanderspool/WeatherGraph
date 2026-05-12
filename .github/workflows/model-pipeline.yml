@@ -31,8 +31,10 @@
 #         model-script: scripts/export_pytorch.py
 #         model-script-args: '--checkpoint weights/my_model.pt'
 #         model-pip-requirements: 'torch==2.3.0'
+#         disable-cpu-mem-arena: true
+#         disable-mem-pattern: true
 #
-# Example: build the reference ONNX from the repo's own extractor scripts
+# Example: build the prototype latent-output graph from the repo's own extractor scripts
 #
 #   jobs:
 #     validate:
@@ -41,6 +43,7 @@
 #         model-source: script
 #         model-script: exporter/build_gnn_graph.py
 #         model-pip-requirements: 'numpy onnx onnxscript'
+#         allow-prototype-exporter: true
 #
 # ── Manual dispatch ───────────────────────────────────────────────────────────
 # You can also trigger this directly from the GitHub Actions UI or gh CLI:
@@ -84,6 +87,36 @@ on:
         required: false
         default: ''
         type: string
+      intra-op-threads:
+        description: ONNX Runtime intra-op thread count for runtime smoke validation
+        required: false
+        default: 1
+        type: number
+      disable-cpu-mem-arena:
+        description: Disable the ONNX Runtime CPU arena allocator during runtime smoke validation
+        required: false
+        default: false
+        type: boolean
+      disable-mem-pattern:
+        description: Disable ONNX Runtime memory-pattern reuse during runtime smoke validation
+        required: false
+        default: false
+        type: boolean
+      spatial-tiling:
+        description: Enable exact graph-aware tiled runtime smoke validation
+        required: false
+        default: false
+        type: boolean
+      tile-bundle-path:
+        description: Repo-relative path to a tile-bundle manifest or directory
+        required: false
+        default: ''
+        type: string
+      allow-prototype-exporter:
+        description: Allow prototype latent-output exporters such as exporter/build_gnn_graph.py
+        required: false
+        default: false
+        type: boolean
       extra-test-args:
         description: Extra pytest arguments appended to the test run
         required: false
@@ -124,6 +157,36 @@ on:
         required: false
         default: ''
         type: string
+      intra-op-threads:
+        description: ONNX Runtime intra-op thread count for runtime smoke validation
+        required: false
+        default: 1
+        type: number
+      disable-cpu-mem-arena:
+        description: Disable the ONNX Runtime CPU arena allocator during runtime smoke validation
+        required: false
+        default: false
+        type: boolean
+      disable-mem-pattern:
+        description: Disable ONNX Runtime memory-pattern reuse during runtime smoke validation
+        required: false
+        default: false
+        type: boolean
+      spatial-tiling:
+        description: Enable exact graph-aware tiled runtime smoke validation
+        required: false
+        default: false
+        type: boolean
+      tile-bundle-path:
+        description: Repo-relative path to a tile-bundle manifest or directory
+        required: false
+        default: ''
+        type: string
+      allow-prototype-exporter:
+        description: Allow prototype latent-output exporters such as exporter/build_gnn_graph.py
+        required: false
+        default: false
+        type: boolean
 
 env:
   ONNXRUNTIME_VERSION: '1.18.0'
@@ -169,7 +232,38 @@ jobs:
           script: ${{ inputs.model-script }}
           script-args: ${{ inputs.model-script-args }}
           pip-requirements: ${{ inputs.model-pip-requirements }}
+          allow-prototype-exporter: ${{ inputs.allow-prototype-exporter }}
           output-path: models/weather_gnn.onnx
+
+      - name: Validate runtime configuration
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+          WEATHERGRAPH_ONNX_MODEL: ${{ steps.model.outputs.model-path }}
+          WEATHERGRAPH_INTRA_OP_THREADS: ${{ inputs.intra-op-threads }}
+          WEATHERGRAPH_DISABLE_CPU_MEM_ARENA: ${{ inputs.disable-cpu-mem-arena }}
+          WEATHERGRAPH_DISABLE_MEM_PATTERN: ${{ inputs.disable-mem-pattern }}
+          WEATHERGRAPH_SPATIAL_TILING: ${{ inputs.spatial-tiling }}
+          WEATHERGRAPH_TILE_BUNDLE_PATH: ${{ inputs.tile-bundle-path }}
+        run: |
+          python - <<'PY'
+          import os
+          from weathergraph import WeatherGraphModel
+
+          kwargs = dict(
+              model_path=os.environ["WEATHERGRAPH_ONNX_MODEL"],
+              weights_dir="data",
+              intra_op_threads=int(os.environ["WEATHERGRAPH_INTRA_OP_THREADS"]),
+              disable_cpu_mem_arena=os.environ["WEATHERGRAPH_DISABLE_CPU_MEM_ARENA"].lower() == "true",
+              disable_mem_pattern=os.environ["WEATHERGRAPH_DISABLE_MEM_PATTERN"].lower() == "true",
+              spatial_tiling=os.environ["WEATHERGRAPH_SPATIAL_TILING"].lower() == "true",
+              tile_bundle_path=os.environ["WEATHERGRAPH_TILE_BUNDLE_PATH"] or None,
+          )
+          model = WeatherGraphModel(**kwargs)
+          print("[runtime] output_shape=", model.output_shape)
+          print("[runtime] cpu_mem_arena_enabled=", model.cpu_mem_arena_enabled)
+          print("[runtime] mem_pattern_enabled=", model.mem_pattern_enabled)
+          PY
 
       # ── Run test suite ───────────────────────────────────────────────────────
       - name: Run test suite
@@ -177,6 +271,11 @@ jobs:
           PYTHONPATH: .
           LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
           WEATHERGRAPH_ONNX_MODEL: ${{ steps.model.outputs.model-path }}
+          WEATHERGRAPH_INTRA_OP_THREADS: ${{ inputs.intra-op-threads }}
+          WEATHERGRAPH_DISABLE_CPU_MEM_ARENA: ${{ inputs.disable-cpu-mem-arena }}
+          WEATHERGRAPH_DISABLE_MEM_PATTERN: ${{ inputs.disable-mem-pattern }}
+          WEATHERGRAPH_SPATIAL_TILING: ${{ inputs.spatial-tiling }}
+          WEATHERGRAPH_TILE_BUNDLE_PATH: ${{ inputs.tile-bundle-path }}
         run: |
           pytest \
             tests/test_cpp_backend.py \

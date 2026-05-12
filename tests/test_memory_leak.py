@@ -20,8 +20,10 @@ def create_dummy_onnx(path):
 
 def test_memory_leak_infinite_rollout():
     """
-    Stress tests the C++ backend for memory leaks during an extended auto-regressive 
-    rollout loop. Essential for ensuring the 1GB RAM limitation on e2.micro nodes.
+    Stress test the C++ backend for unbounded RSS growth during repeated inference.
+
+    This guards the runtime contract itself, not a specific deployment claim like
+    "all workloads fit in 1 GB RAM".
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         model_path = os.path.join(tmpdir, "dummy_model.onnx")

@@ -53,6 +53,13 @@ inputs:
     required: false
     default: ''
 
+  allow-prototype-exporter:
+    description: >
+      Set to 'true' to allow known prototype latent-output exporters such as
+      exporter/build_gnn_graph.py. Leave false for production inference flows.
+    required: false
+    default: 'false'
+
   output-path:
     description: Path (relative to repo root) where the .onnx file will be written.
     required: false
@@ -80,6 +87,11 @@ runs:
         fi
         if [ "$SOURCE" = "script" ] && [ -z "${{ inputs.script }}" ]; then
           echo "::error::prepare-model: 'script' is required when source is 'script'"
+          exit 1
+        fi
+        if [ "$SOURCE" = "script" ] && [ "${{ inputs.script }}" = "exporter/build_gnn_graph.py" ] && [ "${{ inputs.allow-prototype-exporter }}" != "true" ]; then
+          echo "::error::prepare-model: exporter/build_gnn_graph.py emits a prototype latent-output graph."
+          echo "::error::Set allow-prototype-exporter=true only for graph-construction experiments, not WeatherGraphModel inference flows."
           exit 1
         fi
 

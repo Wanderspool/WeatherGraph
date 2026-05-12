@@ -83,6 +83,11 @@ from weathergraph.data_sources import load_source
 model = WeatherGraphModel(
     model_path="$MODEL_PATH",
     weights_dir="$WG_DIR/data",
+  intra_op_threads=${intra_op_threads},
+  disable_cpu_mem_arena=${disable_cpu_mem_arena},
+  disable_mem_pattern=${disable_mem_pattern},
+  spatial_tiling=${spatial_tiling},
+  tile_bundle_path=${jsonencode(tile_bundle_path)},
 )
 source_name = "${data_source}"
 params_raw = "${data_source_params}"

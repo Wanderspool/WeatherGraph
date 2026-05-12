@@ -33,6 +33,12 @@ jobs:
       model-source: onnx
       # ── Configure ────────────────────────────────────────────────────────────
       model-url: 'https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx'
+      # Optional runtime knobs for low-memory runs:
+      # intra-op-threads: 1
+      # disable-cpu-mem-arena: true
+      # disable-mem-pattern: true
+      # spatial-tiling: true
+      # tile-bundle-path: 'tile_bundle/manifest.json'
       # Other examples:
       #   model-url: 'https://my-bucket.s3.amazonaws.com/models/my_gnn.onnx'
       #   model-url: 'https://github.com/MyOrg/MyRepo/releases/download/v1.0/model.onnx'
@@ -56,7 +62,7 @@ jobs:
   #   model.load_state_dict(torch.load(args.checkpoint, map_location='cpu'))
   #   model.eval()
   #
-  #   dummy = torch.zeros(1, 71042, 78)
+  #   dummy = torch.zeros(1, n_nodes, 78)
   #   torch.onnx.export(
   #       model, dummy, args.output, opset_version=17,
   #       input_names=['input'], output_names=['output'],
@@ -75,19 +81,24 @@ jobs:
   #     # ───────────────────────────────────────────────────────────────────────
 
   # ============================================================================
-  # OPTION C — Build the reference ONNX from the repo's extractor scripts
+  # OPTION C — Build the prototype latent-output graph from the repo's extractor scripts
   #
   # Uses exporter/build_gnn_graph.py which reads data/weights/*.npy and
   # data/graph_data/ (both Git LFS objects, checked out automatically).
-  # No external model source needed — everything is in the repo.
+  # This path is for graph-construction experiments only: it emits a prototype
+  # latent-output ONNX graph and is not compatible with WeatherGraphModel
+  # autoregressive inference unless you explicitly allow prototype exporters.
   # ============================================================================
   # validate-reference-built:
-  #   name: Validate built-from-source WeatherGraph-compatible ONNX
+  #   name: Validate prototype latent-output graph
   #   uses: Wanderspool/WeatherGraph/.github/workflows/model-pipeline.yml@main
   #   with:
   #     model-source: script
   #     model-script: 'exporter/build_gnn_graph.py'
   #     model-pip-requirements: 'numpy onnx onnxscript'
+  #     allow-prototype-exporter: true
+  #     disable-cpu-mem-arena: true
+  #     disable-mem-pattern: true
 
   # ============================================================================
   # OPTION D — Convert from TensorFlow / Keras (tf2onnx)

@@ -31,7 +31,11 @@
 #           {"name": "INPUT_DATA",     "value": "s3://my-bucket/era5/2024010100.nc"},
 #           {"name": "OUTPUT_BUCKET",  "value": "s3://my-bucket/forecasts"},
 #           {"name": "STEPS",          "value": "16"},
-#           {"name": "OUTPUT_FMT",     "value": "zarr"}
+#           {"name": "OUTPUT_FMT",     "value": "zarr"},
+#           {"name": "DISABLE_CPU_MEM_ARENA", "value": "true"},
+#           {"name": "DISABLE_MEM_PATTERN",   "value": "true"},
+#           {"name": "SPATIAL_TILING",        "value": "true"},
+#           {"name": "TILE_BUNDLE_PATH",      "value": "/opt/weathergraph/tile_bundle/manifest.json"}
 #         ]
 #       }'
 # ==============================================================================
@@ -67,6 +71,31 @@ Parameters:
     Type:    String
     Default: "netcdf4"
     AllowedValues: [netcdf4, zarr, npz]
+
+  IntraOpThreads:
+    Type:    Number
+    Default: 1
+    Description: ONNX Runtime intra-op thread count
+
+  DisableCpuMemArena:
+    Type:    String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+
+  DisableMemPattern:
+    Type:    String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+
+  SpatialTiling:
+    Type:    String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+
+  TileBundlePath:
+    Type:    String
+    Default: ""
+    Description: Path to a tile-bundle manifest or directory on the job host
 
   DataSource:
     Type:    String
@@ -212,7 +241,15 @@ Resources:
             import json, xarray as xr
             from weathergraph import WeatherGraphModel
             from weathergraph.data_sources import load_source
-            model = WeatherGraphModel(model_path='$MODEL_PATH', weights_dir='$WG_DIR/data')
+            model = WeatherGraphModel(
+              model_path='$MODEL_PATH',
+              weights_dir='$WG_DIR/data',
+              intra_op_threads=int('${INTRA_OP_THREADS:-1}'),
+              disable_cpu_mem_arena='${DISABLE_CPU_MEM_ARENA:-false}'.lower() == 'true',
+              disable_mem_pattern='${DISABLE_MEM_PATTERN:-false}'.lower() == 'true',
+              spatial_tiling='${SPATIAL_TILING:-false}'.lower() == 'true',
+              tile_bundle_path='${TILE_BUNDLE_PATH:-}' or None,
+            )
             _src  = '$DATA_SOURCE' or 'era5_netcdf'
             _prms = '$DATA_SOURCE_PARAMS'
             if _src == 'era5_netcdf':
@@ -238,6 +275,11 @@ Resources:
           - {Name: OUTPUT_BUCKET,     Value: !Ref OutputBucket}
           - {Name: STEPS,             Value: !Sub "${Steps}"}
           - {Name: OUTPUT_FMT,        Value: !Ref OutputFmt}
+          - {Name: INTRA_OP_THREADS,  Value: !Sub "${IntraOpThreads}"}
+          - {Name: DISABLE_CPU_MEM_ARENA, Value: !Ref DisableCpuMemArena}
+          - {Name: DISABLE_MEM_PATTERN, Value: !Ref DisableMemPattern}
+          - {Name: SPATIAL_TILING,    Value: !Ref SpatialTiling}
+          - {Name: TILE_BUNDLE_PATH,  Value: !Ref TileBundlePath}
           - {Name: T0,                Value: ""}
           - {Name: DATA_SOURCE,       Value: !Ref DataSource}
           - {Name: DATA_SOURCE_PARAMS,Value: !Ref DataSourceParams}

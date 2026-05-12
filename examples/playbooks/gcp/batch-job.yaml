@@ -50,6 +50,11 @@ taskGroups:
               STEPS="${STEPS:-40}"
               OUTPUT_FMT="${OUTPUT_FMT:-netcdf4}"
               T0="${T0:-}"
+              INTRA_OP_THREADS="${INTRA_OP_THREADS:-1}"
+              DISABLE_CPU_MEM_ARENA="${DISABLE_CPU_MEM_ARENA:-false}"
+              DISABLE_MEM_PATTERN="${DISABLE_MEM_PATTERN:-false}"
+              SPATIAL_TILING="${SPATIAL_TILING:-false}"
+              TILE_BUNDLE_PATH="${TILE_BUNDLE_PATH:-}"
               DATA_SOURCE="${DATA_SOURCE:-era5_netcdf}"
               DATA_SOURCE_PARAMS="${DATA_SOURCE_PARAMS:-}"
 
@@ -103,7 +108,15 @@ taskGroups:
               import json, xarray as xr
               from weathergraph import WeatherGraphModel
               from weathergraph.data_sources import load_source
-              model = WeatherGraphModel(model_path='$MODEL_PATH', weights_dir='$WG_DIR/data')
+                model = WeatherGraphModel(
+                  model_path='$MODEL_PATH',
+                  weights_dir='$WG_DIR/data',
+                  intra_op_threads=int('$INTRA_OP_THREADS'),
+                  disable_cpu_mem_arena='${DISABLE_CPU_MEM_ARENA}'.lower() == 'true',
+                  disable_mem_pattern='${DISABLE_MEM_PATTERN}'.lower() == 'true',
+                  spatial_tiling='${SPATIAL_TILING}'.lower() == 'true',
+                  tile_bundle_path='${TILE_BUNDLE_PATH}' or None,
+                )
               _src  = '$DATA_SOURCE' or 'era5_netcdf'
               _prms = '$DATA_SOURCE_PARAMS'
               if _src == 'era5_netcdf':
@@ -134,6 +147,11 @@ taskGroups:
           STEPS:             "40"
           OUTPUT_FMT:        "netcdf4"
           T0:                ""
+          INTRA_OP_THREADS:  "1"
+          DISABLE_CPU_MEM_ARENA: "false"
+          DISABLE_MEM_PATTERN: "false"
+          SPATIAL_TILING:    "false"
+          TILE_BUNDLE_PATH:  ""
           DATA_SOURCE:       "era5_netcdf"
           DATA_SOURCE_PARAMS: ""
 

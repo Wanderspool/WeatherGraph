@@ -31,12 +31,16 @@
 #        -e "steps=16" \
 #        -e "output_fmt=zarr"
 #
-# 4. Use a conversion script instead of a pre-built ONNX:
+# 4. Use your own production conversion script instead of a pre-built ONNX:
 #
 #      ansible-playbook -i hosts.yml site.yml \
 #        -e "model_source=script" \
-#        -e "model_script=exporter/build_gnn_graph.py" \
-#        -e "model_script_pip=numpy onnx onnxscript"
+#        -e "model_script=scripts/export_pytorch.py" \
+#        -e "model_script_args=--checkpoint checkpoints/my_model.pt" \
+#        -e "model_script_pip=torch==2.3.0"
+#
+#    Note: exporter/build_gnn_graph.py currently emits a prototype latent-output
+#    graph and is not a supported production export path for WeatherGraphModel.
 #
 # Variables (all have safe defaults)
 # ────────────────────────────────────────────────────────────────
@@ -50,6 +54,11 @@
 #  steps              forecast steps (×6h)   default: 40
 #  output_fmt         netcdf4 | zarr | npz   default: netcdf4
 #  t0                 ISO-8601 start time    default: ""
+#  intra_op_threads   ORT intra-op threads   default: 1
+#  disable_cpu_mem_arena  low-memory ORT mode default: false
+#  disable_mem_pattern    low-memory ORT mode default: false
+#  spatial_tiling         exact tile-bundle mode default: false
+#  tile_bundle_path       manifest/dir path       default: ""
 # ==============================================================================
 
 - name: WeatherGraph — Weather Forecast Pipeline
@@ -73,6 +82,11 @@
     steps:             40
     output_fmt:        "netcdf4"
     t0:                ""
+    intra_op_threads:  1
+    disable_cpu_mem_arena: false
+    disable_mem_pattern: false
+    spatial_tiling: false
+    tile_bundle_path: ""
     # ── Data source ─────────────────────────────────────────────────────
     # Supported names: era5_netcdf (default), ecmwf_open, cds_era5,
     #                  gfs, open_meteo, custom
@@ -201,6 +215,11 @@
           model = WeatherGraphModel(
               model_path="{{ wg_model_path }}",
               weights_dir="{{ wg_dir }}/data",
+              intra_op_threads={{ intra_op_threads }},
+              disable_cpu_mem_arena={{ disable_cpu_mem_arena | lower }},
+              disable_mem_pattern={{ disable_mem_pattern | lower }},
+              spatial_tiling={{ spatial_tiling | lower }},
+              tile_bundle_path={{ tile_bundle_path | tojson }},
           )
 
           # ── Select data source ────────────────────────────────────────

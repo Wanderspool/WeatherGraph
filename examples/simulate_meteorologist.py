@@ -60,6 +60,13 @@ from weathergraph.data_sources import (
 )
 
 
+def env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def build_adapter_for_simulation(sim_file: str, era5_data_dir: str):
     """Return a DataSourceAdapter for the current DATA_SOURCE setting.
 
@@ -159,12 +166,21 @@ def run_real_simulations():
     MODEL_PATH = os.getenv("WEATHERGRAPH_ONNX_MODEL", "models/weather_gnn.onnx")
     WEIGHTS_DIR = os.getenv("WEATHERGRAPH_WEIGHTS_DIR", os.getenv("KEISLER_WEIGHTS_DIR", "data"))
     ERA5_DATA_DIR = os.getenv("ERA5_DATA_DIR", "data/era5_archives")
+    TILE_BUNDLE_PATH = os.getenv("WEATHERGRAPH_TILE_BUNDLE_PATH") or None
 
     verify_environment(MODEL_PATH, WEIGHTS_DIR, ERA5_DATA_DIR)
     
     print("[+] Initializing High-Performance C++/ONNX Engine...")
     try:
-        model = WeatherGraphModel(model_path=MODEL_PATH, weights_dir=WEIGHTS_DIR)
+        model = WeatherGraphModel(
+            model_path=MODEL_PATH,
+            weights_dir=WEIGHTS_DIR,
+            intra_op_threads=int(os.getenv("WEATHERGRAPH_INTRA_OP_THREADS", "1")),
+            disable_cpu_mem_arena=env_flag("WEATHERGRAPH_DISABLE_CPU_MEM_ARENA"),
+            disable_mem_pattern=env_flag("WEATHERGRAPH_DISABLE_MEM_PATTERN"),
+            spatial_tiling=env_flag("WEATHERGRAPH_SPATIAL_TILING"),
+            tile_bundle_path=TILE_BUNDLE_PATH,
+        )
     except Exception as e:
         print(f"\n[CRITICAL ERROR] C++ Engine failed to load the model: {e}")
         sys.exit(1)

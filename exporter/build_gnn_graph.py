@@ -7,12 +7,20 @@ import argparse
 
 # --- Concrete GNN Ops for the Engine ---
 
+PROTOTYPE_WARNING = (
+    "WARNING: exporter/build_gnn_graph.py currently emits a prototype latent-output ONNX graph. "
+    "The output tensor is not a full autoregressive WeatherGraph state [1, nodes, 78], so "
+    "it is not compatible with WeatherGraphModel forecast/predict_one_step. Use it only for "
+    "graph-construction experiments until the decoder/output projection path is implemented."
+)
+
 def get_weight_const(weights_dir, layer_name, param_name):
     path = os.path.join(weights_dir, layer_name, f"{param_name}.npy")
     return np.load(path)
 
 def build_full_graph(weights_dir, graph_dir, out_path):
     print(f"Building full WeatherGraph-compatible ONNX graph at {out_path}...")
+    print(PROTOTYPE_WARNING)
     
     # 1. Load static graph topology for constants
     enc_senders = np.load(os.path.join(graph_dir, "senders_receivers_encoder/senders.npy")).astype(np.int64)
@@ -93,7 +101,9 @@ def build_full_graph(weights_dir, graph_dir, out_path):
     print("Export successful.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Build WeatherGraph ONNX from extracted data artifacts.")
+    parser = argparse.ArgumentParser(
+        description="Build a prototype WeatherGraph latent-output ONNX graph from extracted data artifacts."
+    )
     parser.add_argument("--weights-dir", default="data/weights", help="Path to extracted weights directory")
     parser.add_argument("--graph-dir",   default="data/graph_data", help="Path to extracted graph data directory")
     parser.add_argument("--output",      default="models/weather_gnn.onnx", help="Output .onnx file path")
