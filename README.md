@@ -70,6 +70,12 @@ weathergraph forecast \
     --input-path initial_state.nc \
     --steps 1 \
     --output-format none
+
+weathergraph visualize \
+    --input forecast_out.nc \
+    --variable t \
+    --format html \
+    --output interactive_map.html
 ```
 
 If you are running directly from a source checkout without installing the

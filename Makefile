@@ -81,7 +81,7 @@ build: onnxruntime-sdk/lib/libonnxruntime.so $(MODEL_OUT)  ## Compile C++ pybind
 	@echo "[build] Compiling..."
 	cmake --build $(BUILD_DIR) --parallel
 	@echo "[build] Copying .so into weathergraph/core/"
-	@cp $(BUILD_DIR)/weathergraph_backend.so $(SO_OUT)
+	@cp build/weathergraph_backend*.so $(SO_OUT)
 	@cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 	@echo "[build] Done. Backend: $(SO_OUT)"
 

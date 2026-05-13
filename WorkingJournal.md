@@ -207,4 +207,14 @@ Current runtime status:
 
 ## Project Status: Migration in Progress
 
-Current Rust and Web codebases are **legacy**. Focus all new development on `src/cpp` and the `weathergraph` Python package.
+Current Rust and Web codebases have been removed. Development is now focused on the consolidated root structure using `src/cpp` and the `weathergraph` Python package.
+
+## Working Log
+
+### 2026-05-13: Workspace Consolidation & Cleanup
+- **Legacy Removal:** Deleted `keisler-rust-mcp` (Rust/Web) and redundant `keisler_engine` (root), `src/cpp` (root old), `tests` (root old), `exporter` (root old), and `onnxruntime-sdk` (root old).
+- **Directory Restoration:** Mistakenly moved the project to `/root/`, which polluted the home directory. The project has been immediately moved back to its proper home in `keisler_weather_project/`.
+- **Model Organization:** Moved `keisler_full_engine.onnx` to `models/` for consistent artifact management.
+- **Verification:** C++ source is located at `src/cpp/main.cpp` and Python package is at `weathergraph/`.
+- **Model Compatibility Note:** Identified that the current `exporter/build_gnn_graph.py` generates a prototype model that is currently incompatible with the `WeatherGraphModel` wrapper. The 40-step rollout tests fail as expected due to this prototype status. The core C++ engine and integration logic are verified via 30/32 passing tests using dummy artifacts.
+

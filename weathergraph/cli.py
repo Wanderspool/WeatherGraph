@@ -221,6 +221,25 @@ def build_parser() -> argparse.ArgumentParser:
     forecast_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     forecast_parser.set_defaults(func=_cmd_forecast)
 
+    vis_parser = subparsers.add_parser(
+        "visualize",
+        help="Generate Leaflet HTML maps or MP4/GIF animations from a saved forecast.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    vis_parser.add_argument("--input", required=True, help="Path to the saved forecast NetCDF dataset.")
+    vis_parser.add_argument("--variable", required=True, help="Variable to visualize (e.g., 't', 'z').")
+    vis_parser.add_argument(
+        "--format",
+        choices=["html", "mp4", "gif"],
+        default="mp4",
+        help="Output artifact format.",
+    )
+    vis_parser.add_argument("--output", required=True, help="Path to save the generated artifact.")
+    vis_parser.add_argument("--cmap", default="viridis", help="Colormap name.")
+    vis_parser.add_argument("--time-index", type=int, default=0, help="Time index for HTML map generation.")
+    vis_parser.add_argument("--fps", type=int, default=5, help="Frames per second for animations.")
+    vis_parser.set_defaults(func=_cmd_visualize)
+
     return parser
 
 
@@ -364,6 +383,26 @@ def _cmd_forecast(args: argparse.Namespace) -> int:
         },
         args.json,
     )
+    return 0
+
+
+def _cmd_visualize(args: argparse.Namespace) -> int:
+    import xarray as xr
+    from .vis import create_interactive_map, create_animation
+
+    print(f"Loading dataset from {args.input}...")
+    ds = xr.open_dataset(args.input)
+
+    if args.format == "html":
+        print(f"Generating interactive map for '{args.variable}' at step {args.time_index}...")
+        m = create_interactive_map(ds, args.variable, time_index=args.time_index, cmap_name=args.cmap)
+        m.save(args.output)
+        print(f"Map saved to {args.output}")
+    else:
+        print(f"Generating {args.format.upper()} animation for '{args.variable}'...")
+        create_animation(ds, args.variable, args.output, format=args.format, cmap_name=args.cmap, fps=args.fps)
+        print(f"Animation saved to {args.output}")
+
     return 0
 
 

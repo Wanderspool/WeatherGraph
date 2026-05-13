@@ -298,6 +298,21 @@ def run_real_simulations():
                     perturbed_ds['t'].loc[dict(level=850)] += noise
                     results.append(model.predict_one_step(perturbed_ds))
                 print("  [SUCCESS] Calculated ensemble variance successfully.")
+            elif sim['id'] == 1:
+                # For the first simulation, let's export it and try visualization
+                out_nc = f"sim_{sim['id']}_forecast.nc"
+                model.forecast_export(adapter, steps=10, output_path=out_nc, fmt="netcdf4")
+                print(f"  [SUCCESS] Exported forecast to {out_nc}")
+                
+                from weathergraph.vis import VIS_AVAILABLE
+                if VIS_AVAILABLE:
+                    from weathergraph.vis import create_animation
+                    import xarray as xr
+                    out_mp4 = f"sim_{sim['id']}_animation.mp4"
+                    print(f"  [INFO] Visualization enabled. Generating animation {out_mp4}...")
+                    ds_out = xr.open_dataset(out_nc)
+                    create_animation(ds_out, variable='t', output_path=out_mp4, format='mp4')
+                    print(f"  [SUCCESS] Saved visualization to {out_mp4}")
             else:
                 forecast = model.forecast(adapter, steps=40)  # 10 days
                 print(f"  [SUCCESS] Completed 10-day forecast. Final tensor shape: {forecast[-1].shape}")

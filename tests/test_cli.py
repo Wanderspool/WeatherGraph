@@ -195,3 +195,61 @@ def test_cli_forecast_one_step_without_export(monkeypatch, capsys):
     assert calls["source"] == {"name": "era5_netcdf", "kwargs": {"path": "data/era5_archives/init.nc"}}
     assert payload["mode"] == "predict_one_step"
     assert payload["output_shape"] == [1, 4, 78]
+
+
+def test_cli_visualize(monkeypatch, capsys, tmp_path):
+    calls = {}
+
+    def fake_create_interactive_map(ds, variable, time_index=0, cmap_name="viridis"):
+        calls["html"] = {"variable": variable, "time_index": time_index, "cmap_name": cmap_name}
+        import types
+        return types.SimpleNamespace(save=lambda path: calls.update({"saved_html": path}))
+
+    def fake_create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis", fps=5):
+        calls["anim"] = {"variable": variable, "output_path": output_path, "format": format, "cmap_name": cmap_name, "fps": fps}
+
+    import xarray as xr
+    def fake_open_dataset(path):
+        return xr.Dataset()
+
+    monkeypatch.setattr(xr, "open_dataset", fake_open_dataset)
+    # The functions are imported directly in _cmd_visualize, so we need to patch them in the module where they are used.
+    monkeypatch.setattr(cli, "create_interactive_map", fake_create_interactive_map, raising=False)
+    monkeypatch.setattr(cli, "create_animation", fake_create_animation, raising=False)
+    
+    # We patch inside the sys.modules to catch the local import in _cmd_visualize
+    import sys
+    import types
+    sys.modules["weathergraph.vis"] = types.SimpleNamespace(
+        create_interactive_map=fake_create_interactive_map,
+        create_animation=fake_create_animation
+    )
+
+    html_out = str(tmp_path / "out.html")
+    exit_code_html = cli.main([
+        "visualize",
+        "--input", "dummy.nc",
+        "--variable", "t",
+        "--format", "html",
+        "--output", html_out
+    ])
+
+    assert exit_code_html == 0
+    assert calls["html"]["variable"] == "t"
+    assert calls["saved_html"] == html_out
+
+    mp4_out = str(tmp_path / "out.mp4")
+    exit_code_mp4 = cli.main([
+        "visualize",
+        "--input", "dummy.nc",
+        "--variable", "z",
+        "--format", "mp4",
+        "--output", mp4_out,
+        "--fps", "10"
+    ])
+
+    assert exit_code_mp4 == 0
+    assert calls["anim"]["variable"] == "z"
+    assert calls["anim"]["format"] == "mp4"
+    assert calls["anim"]["output_path"] == mp4_out
+    assert calls["anim"]["fps"] == 10
