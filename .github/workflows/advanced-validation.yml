@@ -16,6 +16,18 @@ jobs:
           - model: "Keisler-2022"
             resolution: 1.0
             url: "https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx"
+            lat: 181
+            lon: 360
+          - model: "GraphCast-Lite"
+            resolution: 0.25
+            url: "none"
+            lat: 721
+            lon: 1440
+          - model: "WeatherGraph-0.1"
+            resolution: 0.1
+            url: "none"
+            lat: 1801
+            lon: 3600
 
     steps:
       - uses: actions/checkout@v4
@@ -35,34 +47,63 @@ jobs:
         with:
           onnxruntime-version: '1.18.0'
           
-      - name: Fetch Real Model Weights
+      - name: Prepare Models and Weights
+        env:
+          MODEL_NAME: ${{ matrix.model }}
+          MODEL_URL: ${{ matrix.url }}
+          RESOLUTION: ${{ matrix.resolution }}
         run: |
-          mkdir -p models data/weights
-          python scripts/download_real_model.py
+          mkdir -p models data/weights data/era5_archives
+          if [ "$MODEL_URL" != "none" ]; then
+            python scripts/download_real_model.py
+          else
+            python scripts/prepare_multi_res_testing.py --resolution $RESOLUTION --base-dir test_artifacts
+            cp test_artifacts/res_${RESOLUTION}/weights/* data/weights/
+            if [ -f test_artifacts/res_${RESOLUTION}/models/model.onnx ]; then
+              cp test_artifacts/res_${RESOLUTION}/models/model.onnx models/${MODEL_NAME}.onnx
+            else
+              cp test_artifacts/res_${RESOLUTION}/models/tile.onnx models/${MODEL_NAME}.onnx
+            fi
+          fi
           
       - name: Run Hindcast Validation
         env:
           PYTHONPATH: .
           LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
-          WEATHERGRAPH_ONNX_MODEL: models/keisler_2022.onnx
+          WEATHERGRAPH_ONNX_MODEL: models/${{ matrix.model }}.onnx
           KEISLER_WEIGHTS_DIR: data/weights
           WEATHERGRAPH_ENABLE_EXTENDED_VALIDATION: 1
         run: |
-          python scripts/generate_test_data.py data/era5_archives/20050823_init.nc 181 360
-          python scripts/generate_test_data.py data/era5_archives/20050823_t10.nc 181 360
-          pytest tests/test_historical_validation.py -v -s
+          python scripts/generate_test_data.py data/era5_archives/20050823_init.nc ${{ matrix.lat }} ${{ matrix.lon }}
+          python scripts/generate_test_data.py data/era5_archives/20050823_t10.nc ${{ matrix.lat }} ${{ matrix.lon }}
+          
+          if [ "${{ matrix.resolution }}" == "1.0" ]; then
+            pytest tests/test_historical_validation.py -v -s
+          fi
           
       - name: Generate Scientific Report
         run: |
-          # 10-step forecast (60 hours)
           START_TIME=$(date +%s.%N)
-          python -m weathergraph.cli forecast \
-            --model-path models/keisler_2022.onnx \
-            --weights-dir data/weights \
-            --input-path data/era5_archives/20050823_init.nc \
-            --steps 10 \
-            --output-path forecast_output \
-            --output-format netcdf4
+          if [ "${{ matrix.resolution }}" == "0.1" ]; then
+             python -m weathergraph.cli forecast \
+              --model-path models/${{ matrix.model }}.onnx \
+              --weights-dir data/weights \
+              --input-path data/era5_archives/20050823_init.nc \
+              --steps 10 \
+              --output-path forecast_output \
+              --output-format netcdf4 \
+              --spatial-tiling \
+              --tile-bundle-path test_artifacts/res_0.1/bundle \
+              --tile-state-backend memmap
+          else
+             python -m weathergraph.cli forecast \
+              --model-path models/${{ matrix.model }}.onnx \
+              --weights-dir data/weights \
+              --input-path data/era5_archives/20050823_init.nc \
+              --steps 10 \
+              --output-path forecast_output \
+              --output-format netcdf4
+          fi
           END_TIME=$(date +%s.%N)
           DURATION=$(echo "$END_TIME - $START_TIME" | bc)
           echo "WEATHERGRAPH_INFERENCE_TIME=$DURATION" >> $GITHUB_ENV
