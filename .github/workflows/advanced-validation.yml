@@ -27,7 +27,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          pip install numpy xarray pandas dask netCDF4 pytest onnx pybind11 matplotlib tqdm requests
+          pip install numpy xarray pandas dask netCDF4 pytest psutil memory-profiler onnx pybind11 matplotlib tqdm requests
           
       - name: Build WeatherGraph engine
         id: engine
@@ -48,7 +48,6 @@ jobs:
           KEISLER_WEIGHTS_DIR: data/weights
           WEATHERGRAPH_ENABLE_EXTENDED_VALIDATION: 1
         run: |
-          # Generate dummy historical data for the smoke test until real LFS data is pulled
           python scripts/generate_test_data.py data/era5_archives/20050823_init.nc 181 360
           python scripts/generate_test_data.py data/era5_archives/20050823_t10.nc 181 360
           pytest tests/test_historical_validation.py -v -s
@@ -56,6 +55,7 @@ jobs:
       - name: Generate Scientific Report
         run: |
           # 10-step forecast (60 hours)
+          START_TIME=$(date +%s.%N)
           python -m weathergraph.cli forecast \
             --model-path models/keisler_2022.onnx \
             --weights-dir data/weights \
@@ -63,12 +63,17 @@ jobs:
             --steps 10 \
             --output-path forecast_output \
             --output-format netcdf4
+          END_TIME=$(date +%s.%N)
+          DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+          echo "WEATHERGRAPH_INFERENCE_TIME=$DURATION" >> $GITHUB_ENV
             
-          # Compare Geopotential at 500hPa
           python scripts/generate_scientific_report.py \
             --prediction forecast_output/z_500hPa.nc \
             --truth data/era5_archives/20050823_t10.nc \
             --output-dir validation_report
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
           
       - name: Upload Analysis Artifacts
         if: always()

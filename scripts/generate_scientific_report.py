@@ -15,24 +15,34 @@ def generate_report(prediction_path, truth_path, output_dir):
     pred = xr.open_dataset(prediction_path)
     truth = xr.open_dataset(truth_path)
     
-    # Ensure variables match
-    var_name = list(pred.data_vars)[0]
-    if var_name not in truth.data_vars:
-         # Fallback for dummy truth
-         truth_data = truth[list(truth.data_vars)[0]]
-    else:
-         truth_data = truth[var_name]
+    # Align times if necessary
+    common_vars = set(pred.data_vars) & set(truth.data_vars)
+    
+    for var in common_vars:
+        diff = pred[var] - truth[var]
+        
+        # Plot mean error map
+        plt.figure(figsize=(12, 6))
+        diff.mean(dim='time').plot(cmap='RdBu_r')
+        plt.title(f"Mean Error Map: {var}")
+        plt.savefig(os.path.join(output_dir, f"error_map_{var}.png"))
+        plt.close()
+        
+        # Plot RMSE profile over time
+        rmse = np.sqrt((diff**2).mean(dim=['lat', 'lon']))
+        plt.figure(figsize=(10, 5))
+        rmse.plot()
+        plt.title(f"Global RMSE over Time: {var}")
+        plt.ylabel("RMSE")
+        plt.savefig(os.path.join(output_dir, f"rmse_time_{var}.png"))
+        plt.close()
 
-    # Simple comparison
-    diff = pred[var_name].isel(time=-1) - truth_data.isel(level=0) # simplified for smoke test
-    
-    plt.figure(figsize=(12, 6))
-    diff.plot(cmap='RdBu_r')
-    plt.title(f"Forecast Error: {var_name}")
-    plt.savefig(os.path.join(output_dir, f"error_map_{var_name}.png"))
-    plt.close()
-    
-    summary = {"status": "success", "variable": var_name}
+    # Save summary stats to JSON
+    summary = {
+        "variables": list(common_vars),
+        "rmse": {var: float(np.sqrt((pred[var] - truth[var])**2).mean()) for var in common_vars},
+        "inference_time_seconds": float(os.environ.get("WEATHERGRAPH_INFERENCE_TIME", 0))
+    }
     with open(os.path.join(output_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2)
 
