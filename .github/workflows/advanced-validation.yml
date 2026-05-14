@@ -1,0 +1,80 @@
+name: Advanced Climate Model Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, testing/multi-res-scientific-v2 ]
+
+jobs:
+  validate-climate-gnn:
+    name: Validate ${{ matrix.model }} (${{ matrix.resolution }}°)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: "Keisler-2022"
+            resolution: 1.0
+            url: "https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx"
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install numpy xarray pandas dask netCDF4 pytest onnx pybind11 matplotlib tqdm requests
+          
+      - name: Build WeatherGraph engine
+        id: engine
+        uses: ./.github/actions/setup-weathergraph
+        with:
+          onnxruntime-version: '1.18.0'
+          
+      - name: Fetch Real Model Weights
+        run: |
+          mkdir -p models data/weights
+          python scripts/download_real_model.py
+          
+      - name: Run Hindcast Validation
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+          WEATHERGRAPH_ONNX_MODEL: models/keisler_2022.onnx
+          KEISLER_WEIGHTS_DIR: data/weights
+          WEATHERGRAPH_ENABLE_EXTENDED_VALIDATION: 1
+        run: |
+          # Generate dummy historical data for the smoke test until real LFS data is pulled
+          python scripts/generate_test_data.py data/era5_archives/20050823_init.nc 181 360
+          python scripts/generate_test_data.py data/era5_archives/20050823_t10.nc 181 360
+          pytest tests/test_historical_validation.py -v -s
+          
+      - name: Generate Scientific Report
+        run: |
+          # 10-step forecast (60 hours)
+          python -m weathergraph.cli forecast \
+            --model-path models/keisler_2022.onnx \
+            --weights-dir data/weights \
+            --input-path data/era5_archives/20050823_init.nc \
+            --steps 10 \
+            --output-path forecast_output \
+            --output-format netcdf4
+            
+          # Compare Geopotential at 500hPa
+          python scripts/generate_scientific_report.py \
+            --prediction forecast_output/z_500hPa.nc \
+            --truth data/era5_archives/20050823_t10.nc \
+            --output-dir validation_report
+          
+      - name: Upload Analysis Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-${{ matrix.model }}-${{ matrix.resolution }}
+          path: |
+            validation_report/
+            forecast_output/
