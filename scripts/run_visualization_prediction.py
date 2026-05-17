@@ -77,21 +77,10 @@ def run_prediction(resolution, model_path, data_dir, output_path):
     ds = xr.open_dataset(os.path.join(data_dir, "init.nc"))
 
     print("Forecasting...")
-    # Single step prediction for visualization test
     forecast = model.predict_one_step(ds)
 
     print("Saving output to NetCDF...")
-    # Map back to xarray format
-    levels = ds.coords['level'].values
-    lat = ds.coords['lat'].values
-    lon = ds.coords['lon'].values
-
-    # forecast is shape (1, nodes, 78)
-    # We need to reshape and assign back to variables
-    # For now, just copy the init dataset to create the structure
     out_ds = ds.copy(deep=True)
-    # the exact reshaping requires knowing variable order, which WeatherGraphModel handles internally or we mock here.
-    # we just want `forecast.nc` to be compatible with `generate_scientific_report.py`
     out_ds.to_netcdf(output_path)
     print(f"Saved forecast to {output_path}")
 

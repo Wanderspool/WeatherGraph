@@ -17,12 +17,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'core'))
 try:
     import weathergraph_backend
 except ImportError:
-    try:
-        # If not in the package, try local build dir (for dev)
-        sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'build'))
-        import weathergraph_backend
-    except ImportError:
-        import keisler_cpp_backend as weathergraph_backend
+    # If not in the package, try local build dir (for dev)
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'build'))
+    import weathergraph_backend
 
 
 def _normalize_execution_provider(execution_provider):

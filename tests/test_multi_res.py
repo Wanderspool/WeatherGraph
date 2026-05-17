@@ -21,14 +21,23 @@ def test_resolution_execution(resolution):
         
     weights_dir = os.path.join(res_dir, "weights")
     
-    # Tiled execution is available and tested for all resolutions
-    bundle_path = os.path.join(res_dir, "bundle")
-    model = WeatherGraphModel(
-        model_path=None, # Not used when bundle is provided
-        weights_dir=weights_dir,
-        tile_bundle_path=bundle_path,
-        spatial_tiling=True
-    )
+    if resolution <= 0.1:
+        # Tiled execution
+        bundle_path = os.path.join(res_dir, "bundle")
+        model = WeatherGraphModel(
+            model_path=None, # Not used when bundle is provided
+            weights_dir=weights_dir,
+            tile_bundle_path=bundle_path,
+            spatial_tiling=True
+        )
+    else:
+        # Single model execution
+        model_path = os.path.join(res_dir, "models", "model.onnx")
+        model = WeatherGraphModel(
+            model_path=model_path,
+            weights_dir=weights_dir,
+            reference_grid_resolution_degrees=resolution
+        )
         
     # Generate a single time slice of dummy data for this resolution
     grid_shape = grid_shape_from_resolution(resolution)

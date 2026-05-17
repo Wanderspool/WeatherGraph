@@ -10,27 +10,17 @@ import onnx
 from keisler_2022.runner import Runner
 from keisler_2022.config import Config
 
-import argparse
-
 def main():
-    parser = argparse.ArgumentParser(description="Convert Keisler 2022 to ONNX")
-    parser.add_argument("--resolution", type=float, default=1.0, help="Grid resolution in degrees")
-    parser.add_argument("--output", type=str, default="weather_gnn.onnx", help="Output ONNX file path")
-    args = parser.parse_args()
-
-    print(f"Initializing reference-model runner for resolution {args.resolution}...")
+    print("Initializing reference-model runner...")
     config = Config()
     runner = Runner(verbose=True, config=config)
     
-    # Calculate grid shape based on resolution
-    lat_steps = round(180.0 / args.resolution)
-    lon_steps = round(360.0 / args.resolution)
-
-    n_node_era5 = (int(lat_steps) + 1) * int(lon_steps)
+    # We need dummy input data to initialize the graphs
+    # 1.0 degree grid: 181 latitudes, 360 longitudes
+    # 6 variables, 13 levels = 78 channels
+    n_node_era5 = 181 * 360
     n_channels = 78
     
-    print(f"Grid nodes: {n_node_era5} (lat: {lat_steps + 1}, lon: {lon_steps})")
-
     # Create dummy initial data
     dummy_data = jnp.zeros((n_node_era5, n_channels))
     
@@ -70,15 +60,15 @@ def main():
     # For now, let's try a direct conversion
     # We might need to use dynamic_shapes if nodes/edges count varies (though here it's static)
     try:
-        onnx_model = jax2onnx.to_onnx(
+        onnx_model = jax2onnx.from_jax(
             model_fn,
             (graphs, 0),
             # dynamic_shapes=... 
         )
         
-        print(f"Saving ONNX model to {args.output}...")
-        onnx.save(onnx_model, args.output)
-        print(f"Success! Saved to {args.output}")
+        print("Saving ONNX model...")
+        onnx.save(onnx_model, "weather_gnn.onnx")
+        print("Success!")
     except Exception as e:
         print(f"Failed to convert: {e}")
 
