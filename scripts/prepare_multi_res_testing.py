@@ -36,44 +36,41 @@ def prepare_res(resolution, base_dir):
     models_dir = res_dir / "models"
     models_dir.mkdir(exist_ok=True)
     
-    # For 0.25 and 0.1 deg, we MUST use tiling to fit in 1GB RAM
-    if resolution <= 0.25:
-        # Create a small tile model
-        # Base it loosely on the grid
-        tile_lat = grid_shape[0] // 4 + 1
-        tile_lon = grid_shape[1] // 4
-        if tile_lon == 0: tile_lon = grid_shape[1]
-        tile_node_count = tile_lat * tile_lon
-        tile_model_path = models_dir / "tile.onnx"
-        create_identity_onnx(tile_node_count, tile_model_path)
-        
-        # Build tile bundle
-        # We need more "fake" edges for the tile builder to work if we want halo
-        # But for Identity, halo_hops=0 is fine
-        # Re-generate senders/receivers for the full node count to satisfy tile builder
-        # Just self-loops for all nodes
-        full_senders = np.arange(node_count, dtype=np.int64)
-        full_receivers = np.arange(node_count, dtype=np.int64)
-        np.save(graph_dir / "full_senders.npy", full_senders)
-        np.save(graph_dir / "full_receivers.npy", full_receivers)
-        
-        bundle_dir = res_dir / "bundle"
-        build_tile_bundle(
-            output_dir=bundle_dir,
-            senders_path=graph_dir / "full_senders.npy",
-            receivers_path=graph_dir / "full_receivers.npy",
-            tile_model_dir=models_dir,
-            tile_model_template="tile.onnx",
-            reference_grid_resolution_degrees=resolution,
-            tile_grid_shape=(tile_lat, tile_lon),
-            halo_hops=0
-        )
-        print(f"Created tile bundle at {bundle_dir}")
-    else:
-        # Simple single model
-        model_path = models_dir / "model.onnx"
-        create_identity_onnx(node_count, model_path)
-        print(f"Created single model at {model_path}")
+    # Always create tile bundle regardless of resolution to avoid assuming tiling is resolution-dependent
+    tile_lat = max(grid_shape[0] // 4 + 1, 1)
+    tile_lon = max(grid_shape[1] // 4, 1)
+    if tile_lon == 0: tile_lon = grid_shape[1]
+    tile_node_count = tile_lat * tile_lon
+    tile_model_path = models_dir / "tile.onnx"
+    create_identity_onnx(tile_node_count, tile_model_path)
+
+    # Build tile bundle
+    # We need more "fake" edges for the tile builder to work if we want halo
+    # But for Identity, halo_hops=0 is fine
+    # Re-generate senders/receivers for the full node count to satisfy tile builder
+    # Just self-loops for all nodes
+    full_senders = np.arange(node_count, dtype=np.int64)
+    full_receivers = np.arange(node_count, dtype=np.int64)
+    np.save(graph_dir / "full_senders.npy", full_senders)
+    np.save(graph_dir / "full_receivers.npy", full_receivers)
+
+    bundle_dir = res_dir / "bundle"
+    build_tile_bundle(
+        output_dir=bundle_dir,
+        senders_path=graph_dir / "full_senders.npy",
+        receivers_path=graph_dir / "full_receivers.npy",
+        tile_model_dir=models_dir,
+        tile_model_template="tile.onnx",
+        reference_grid_resolution_degrees=resolution,
+        tile_grid_shape=(tile_lat, tile_lon),
+        halo_hops=0
+    )
+    print(f"Created tile bundle at {bundle_dir}")
+
+    # Simple single model
+    model_path = models_dir / "model.onnx"
+    create_identity_onnx(node_count, model_path)
+    print(f"Created single model at {model_path}")
 
 def create_identity_onnx(node_count, output_path):
     import onnx

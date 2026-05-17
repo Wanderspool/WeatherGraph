@@ -1,0 +1,62 @@
+name: Generate Weather Visualization
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  visualize-and-deploy:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install numpy xarray pandas dask netCDF4 pytest matplotlib onnx pybind11 "scipy<1.14" requests
+
+      - name: Build WeatherGraph engine
+        id: engine
+        uses: ./.github/actions/setup-weathergraph
+        with:
+          onnxruntime-version: '1.18.0'
+
+      - name: Generate Dummy Ground Truth Data (Using Real Downloader is Preferred)
+        run: |
+          python scripts/download_real_data.py --resolution 0.25 --days 10 --output-dir data/truth
+
+      - name: Convert Model to ONNX
+        run: |
+          python scripts/download_real_model.py
+          python exporter/convert_to_onnx.py --resolution 0.25 --output models/weather_gnn_0.25.onnx
+
+      - name: Run WeatherGraph Prediction (with Exact Tiling)
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+        run: |
+          python scripts/run_visualization_prediction.py --resolution 0.25 --model models/weather_gnn_0.25.onnx --data-dir data/truth --output forecast.nc
+
+      - name: Generate Scientific Report and Animations
+        run: |
+          python scripts/generate_scientific_report.py --prediction forecast.nc --truth data/truth/truth.nc --output-dir public
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
