@@ -35,9 +35,15 @@ The main runtime path starts in Python and crosses into C++ only for inference.
 
 ### Step 1. User entry point
 
-Main file: `weathergraph/__init__.py`
+Main files: `weathergraph/__init__.py`, `weathergraph/accessor.py`
 
-The package exports `WeatherGraphModel` plus the data-source adapter API. Installing the package also provides the supported `weathergraph` CLI for source discovery, runtime inspection, and forecast execution.
+The package exports `WeatherGraphModel`, the data-source adapter API, and the Xarray accessor (`.weathergraph`).
+
+Users can start inference in two ways:
+1. Object-oriented: instantiate `WeatherGraphModel(model_path=...)`
+2. Data-oriented: call `ds.weathergraph.predict()` directly on an `xr.Dataset`
+
+Installing the package also provides the supported `weathergraph` CLI for source discovery, runtime inspection, and forecast execution.
 
 ### Step 2. Python model orchestration
 
@@ -150,8 +156,8 @@ The public methods differ only in how results are surfaced.
 
 - `predict_one_step()` returns one output tensor.
 - `iter_forecast()` yields each step lazily.
-- `forecast()` materializes every step into a Python list.
-- `forecast_export()` streams or writes the rollout into a chosen file format.
+- `forecast()` materializes every step into a Python list or CF-compliant `xr.Dataset`.
+- `forecast_export()` streams or writes the rollout into a chosen file format with CF-1.11 metadata injection.
 
 ## Export Architecture
 
@@ -181,6 +187,7 @@ Behavior:
 - uses configured reference-grid metadata when reshaping the reference-node subset
 - writes one file per variable and pressure level
 - streams step-by-step to disk to reduce peak memory usage
+- injects CF-1.11 standards (`standard_name`, `units`) via `weathergraph.cf_meta`
 
 This part of the architecture still requires reference-grid metadata rather than a fully generic mesh-to-grid export contract.
 
@@ -238,6 +245,7 @@ Built-in adapters cover both local files and remote APIs.
 - Copernicus CDS
 - NOAA GFS
 - Open-Meteo
+- Zarr store (local and cloud)
 - custom schema-driven mapping
 
 This is the main extension point when a new upstream provider must be supported.

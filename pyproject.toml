@@ -31,6 +31,21 @@ vis = [
     "imageio>=2.30.0",
     "imageio[ffmpeg]>=2.30.0"
 ]
+metpy = [
+    "metpy>=1.5.0"
+]
+xcdat = [
+    "xcdat>=0.6.0"
+]
+climate = [
+    "metpy>=1.5.0",
+    "xcdat>=0.6.0",
+    "xesmf>=0.8.0"
+]
+cloud = [
+    "s3fs>=2023.0.0",
+    "gcsfs>=2023.0.0"
+]
 
 [project.scripts]
 weathergraph = "weathergraph.cli:main"

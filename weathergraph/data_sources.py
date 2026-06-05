@@ -460,6 +460,72 @@ class OpenMeteoAdapter(DataSourceAdapter):
         return xr.Dataset(arrays)
 
 
+# ── Zarr Store (local + cloud) ─────────────────────────────────────────────
+
+class ZarrStoreAdapter(DataSourceAdapter):
+    """Load initial conditions from a local or cloud-hosted Zarr store.
+
+    Supports local paths as well as ``gs://``, ``s3://``, and ``az://``
+    URIs.  Cloud access requires the corresponding filesystem library
+    (``gcsfs``, ``s3fs``, ``adlfs``).
+
+    Install cloud extras::
+
+        pip install 'weathergraph[cloud]'
+
+    Parameters
+    ----------
+    store : str
+        Zarr store path or URI (e.g. ``"era5_init.zarr"``,
+        ``"gs://weatherbench2/datasets/era5/2024-01-01.zarr"``).
+    consolidated : bool, optional
+        Whether to use consolidated metadata (default ``True``).
+    chunks : dict or None, optional
+        Chunk specification forwarded to ``xr.open_zarr()``.
+        ``None`` uses the on-disk chunking.
+
+    Examples
+    --------
+    >>> adapter = ZarrStoreAdapter("gs://weatherbench2/datasets/era5/init.zarr")
+    >>> ds = adapter.load()
+
+    >>> adapter = ZarrStoreAdapter("s3://my-bucket/era5_initial.zarr")
+    >>> ds = adapter.load()
+    """
+
+    name          = "zarr"
+    description   = "Zarr store — local or cloud (GCS/S3/Azure) with lazy Dask loading"
+    requires_auth = False
+
+    def __init__(
+        self,
+        store: str,
+        consolidated: bool = True,
+        chunks: Optional[Dict[str, Any]] = None,
+    ):
+        self.store = store
+        self.consolidated = consolidated
+        self.chunks = chunks
+
+    def load(self) -> xr.Dataset:
+        open_kwargs: Dict[str, Any] = {
+            "consolidated": self.consolidated,
+        }
+        if self.chunks is not None:
+            open_kwargs["chunks"] = self.chunks
+
+        # Cloud backends require filesystem libraries
+        store = self.store
+        if store.startswith("gs://"):
+            self._require("gcsfs", "pip install gcsfs")
+        elif store.startswith("s3://"):
+            self._require("s3fs", "pip install s3fs")
+        elif store.startswith("az://") or store.startswith("abfs://"):
+            self._require("adlfs", "pip install adlfs")
+
+        return xr.open_zarr(store, **open_kwargs)
+
+
 # ── Custom / constructor adapter ───────────────────────────────────────────────
 
 class CustomAdapter(DataSourceAdapter):
@@ -668,6 +734,7 @@ REGISTRY: Dict[str, type] = {
     "cds_era5":    CopernicusCDSAdapter,
     "gfs":         GFSAdapter,
     "open_meteo":  OpenMeteoAdapter,
+    "zarr":        ZarrStoreAdapter,
     "custom":      CustomAdapter,
 }
 

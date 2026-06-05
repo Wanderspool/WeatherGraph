@@ -59,6 +59,7 @@ What it does:
 
 Main public entry points:
 
+- `weathergraph.accessor` (`ds.weathergraph.predict()`)
 - `predict_one_step()`
 - `forecast()`
 - `iter_forecast()`
@@ -90,6 +91,7 @@ Implemented adapters:
 - `cds_era5`: Copernicus CDS reanalysis download.
 - `gfs`: NOAA GFS download through public data access.
 - `open_meteo`: single-point forecast source.
+- `zarr`: local or cloud-hosted Zarr store (GCS/S3/Azure).
 - `custom`: custom file and variable mapping.
 
 Why it matters:
@@ -107,11 +109,12 @@ Use this when you need exactly one 6-hour prediction from a prepared state.
 
 ### `forecast()`
 
-Use this when you want a Python list containing every autoregressive step.
+Use this when you want a Python list containing every autoregressive step or a CF-1.11 compliant `xr.Dataset` (the default).
 
 Trade-off:
 
 - Easy to inspect in Python.
+- Returns a rich `xr.Dataset` with full CF metadata when `as_dataset=True` (default).
 - Highest memory cost because the full trajectory is materialized in RAM.
 
 ### `iter_forecast()`
@@ -252,7 +255,22 @@ Bundle preparation support:
 - This builder requires graph senders/receivers arrays plus already exported per-tile ONNX files.
 - Per-tile ONNX export remains separate from bundle packaging.
 
-## 9. Reference-Grid Streaming Export
+## 9. Climate Ecosystem Integration
+
+WeatherGraph provides seamless integration with the climate-science Python ecosystem.
+
+### CF-1.11 Convention Compliance
+All forecast outputs (including NetCDF and Zarr exports) carry standard CF metadata (`standard_name`, `units`, `Conventions`). This ensures interoperability with any CF-aware library.
+
+### Xarray Accessor
+The `weathergraph` Xarray accessor allows researchers to run predictions directly on Datasets (`ds.weathergraph.predict()`), completely hiding the C++ inference engine.
+
+### MetPy & xCDAT
+- **MetPy**: `ds.weathergraph.prepare_for_metpy()` sorts pressure levels and adds CRS metadata for thermodynamic profile calculations.
+- **xCDAT**: `ds.weathergraph.prepare_for_xcdat()` adds spatial and temporal bounds for proper climate climatology calculations.
+- **Derived Diagnostics**: Automatically compute `wind_speed` and `geopotential_height`.
+
+## 10. Reference-Grid Streaming Export
 
 Main code: `weathergraph/model.py`
 
@@ -264,7 +282,7 @@ What this means:
 - Generic export for arbitrary graph layouts without reference-grid metadata is still not implemented.
 - Raw `npz` export remains the more general fallback when you only need the trajectory tensor.
 
-## 10. Pipeline Integrations
+## 11. Pipeline Integrations
 
 Operational surfaces already wired to the current runtime:
 
@@ -280,7 +298,7 @@ Operational surfaces already wired to the current runtime:
 
 These surfaces already accept the important runtime controls such as generic execution-provider settings, low-memory flags, exact tiling parameters, and configurable reference-grid metadata.
 
-## 11. Validation and Safety Features
+## 12. Validation and Safety Features
 
 Main code: `tests/`
 

@@ -9,6 +9,15 @@ from contextlib import ExitStack
 from pathlib import Path
 import dask
 
+from .cf_meta import (
+    build_cf_dataset,
+    inject_cf_attrs_netcdf,
+    inject_cf_attrs_zarr,
+    _global_attrs,
+    CF_COORDINATE_ATTRS,
+    CF_VARIABLE_ATTRS,
+)
+
 # Force synchronous Dask to avoid worker-pool memory spikes on CPU deployments.
 dask.config.set(scheduler='synchronous')
 
@@ -640,6 +649,7 @@ class WeatherGraphModel:
         os.makedirs(output_path, exist_ok=True)
         time_units = f"hours since {times[0].strftime('%Y-%m-%d %H:%M:%S')}"
         time_values = np.arange(steps, dtype=np.float64) * 6.0
+        global_attrs = _global_attrs()
 
         with ExitStack() as stack:
             writers = {}
@@ -654,10 +664,18 @@ class WeatherGraphModel:
                     time_var = dataset.createVariable("time", "f8", ("time",))
                     time_var.units = time_units
                     time_var.calendar = "proleptic_gregorian"
+                    time_var.setncattr("standard_name", "time")
+                    time_var.setncattr("axis", "T")
                     time_var[:] = time_values
 
                     lat_var = dataset.createVariable("lat", "f8", ("lat",))
+                    lat_var.setncattr("standard_name", "latitude")
+                    lat_var.setncattr("units", "degrees_north")
+                    lat_var.setncattr("axis", "Y")
                     lon_var = dataset.createVariable("lon", "f8", ("lon",))
+                    lon_var.setncattr("standard_name", "longitude")
+                    lon_var.setncattr("units", "degrees_east")
+                    lon_var.setncattr("axis", "X")
                     lat_var[:] = lat
                     lon_var[:] = lon
 
@@ -668,7 +686,15 @@ class WeatherGraphModel:
                         zlib=True,
                         complevel=1,
                     )
+                    # Inject CF variable attributes
+                    cf_attrs = CF_VARIABLE_ATTRS.get(var, {})
+                    for attr_key, attr_val in cf_attrs.items():
+                        data_var.setncattr(attr_key, attr_val)
                     data_var.setncattr("level_hPa", int(level))
+
+                    # Inject CF global attributes
+                    for attr_key, attr_val in global_attrs.items():
+                        dataset.setncattr(attr_key, attr_val)
                     dataset.setncattr("WeatherGraph", "forecast")
                     dataset.setncattr("steps", int(steps))
                     dataset.setncattr("level_hPa", int(level))
@@ -700,13 +726,15 @@ class WeatherGraphModel:
                         )},
                         attrs={"WeatherGraph": "forecast", "level_hPa": int(level)},
                     )
+                    # Inject CF attributes into Zarr output
+                    ds_out = inject_cf_attrs_zarr(ds_out, var, level)
                     out = os.path.join(output_path, f"{var}_{level}hPa.zarr")
                     if step_index == 0:
                         ds_out.to_zarr(out, mode="w")
                     else:
                         ds_out.to_zarr(out, mode="a", append_dim="time")
 
-    def forecast(self, initial_ds, steps=12):
+    def forecast(self, initial_ds, steps=12, as_dataset=True):
         """
         Perform a 6-hour auto-regressive rollout.
 
@@ -718,11 +746,36 @@ class WeatherGraphModel:
             data from any supported source automatically.
         steps : int
             Number of 6-hour steps.
+        as_dataset : bool
+            If ``True`` (default), return a CF-compliant
+            ``xr.Dataset`` with dimensions ``(time, level, lat, lon)``.
+            If ``False``, return a list of raw numpy arrays (legacy
+            behaviour).
 
-        Returns a list of numpy arrays representing the atmospheric state
-        at each step.
+        Returns
+        -------
+        xr.Dataset or list[np.ndarray]
+            CF-compliant Dataset when ``as_dataset=True``;
+            list of ``float32[1, nodes, 78]`` arrays otherwise.
         """
-        return list(self.iter_forecast(initial_ds, steps=steps))
+        trajectory = list(self.iter_forecast(initial_ds, steps=steps))
+
+        if not as_dataset:
+            return trajectory
+
+        # Build CF-compliant xr.Dataset from raw trajectory
+        if self.reference_grid_shape is None:
+            # Without grid metadata we cannot reshape; fall back to raw list
+            return trajectory
+
+        lat, lon = self._reference_grid_coordinates(dtype=np.float64)
+        return build_cf_dataset(
+            trajectory=trajectory,
+            lat=lat,
+            lon=lon,
+            levels=self.levels,
+            level_vars=self.level_vars,
+        )
 
     def forecast_export(self, initial_ds, steps=40, output_path="forecast",
                         fmt="netcdf4", t0=None):

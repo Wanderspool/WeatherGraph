@@ -194,7 +194,87 @@ WeatherGraph includes adapters for the most widely used atmospheric data provide
 | `cds_era5` | Copernicus CDS — ERA5 reanalysis via API | Free registration |
 | `gfs` | NOAA GFS — global forecast via AWS Open Data | None |
 | `open_meteo` | Open-Meteo — multi-model NWP aggregator | None |
+| `zarr` | Zarr store — local or cloud (GCS/S3/Azure) | None |
 | `custom` | Custom files with configurable variable mapping | None |
+
+---
+
+## 🔬 Climate Integration
+
+WeatherGraph embeds seamlessly into the scientific Python ecosystem through a custom Xarray accessor, CF-1.11 convention compliance, and built-in interoperability with MetPy and xCDAT.
+
+### Xarray Accessor
+
+After `import weathergraph`, every `xr.Dataset` gains a `.weathergraph` namespace:
+
+```python
+import xarray as xr
+import weathergraph  # registers the accessor
+
+# Load initial conditions from a cloud Zarr store
+ds = xr.open_zarr("gs://weatherbench2/datasets/era5/2024-01-01.zarr")
+
+# Run a 10-day forecast — all C++ inference and tiling is hidden
+ds_forecast = ds.weathergraph.predict(steps=40)
+
+# Save CF-compliant results to Zarr
+ds_forecast.to_zarr("s3://my-bucket/forecast.zarr")
+```
+
+### CF-1.11 Conventions
+
+All forecast output carries standard CF metadata (`standard_name`, `units`, `Conventions`) enabling automatic interoperability with downstream libraries:
+
+```python
+# Every variable has CF attributes
+ds_forecast["t"].attrs
+# {'standard_name': 'air_temperature', 'units': 'K', 'long_name': 'Air Temperature'}
+
+ds_forecast.attrs["Conventions"]
+# 'CF-1.11'
+```
+
+### MetPy Integration
+
+Prepare forecast data for operational meteorology analysis:
+
+```python
+from weathergraph.integrations import prepare_for_metpy
+import metpy.calc as mpcalc
+
+ds_metpy = prepare_for_metpy(ds_forecast)  # sorts pressure levels, adds CRS
+u_geo, v_geo = mpcalc.geostrophic_wind(ds_metpy["z"].sel(level=500).metpy.quantify())
+```
+
+### xCDAT Integration
+
+Compute area-weighted spatial averages and climate anomalies:
+
+```python
+from weathergraph.integrations import prepare_for_xcdat
+
+ds_xcdat = prepare_for_xcdat(ds_forecast)  # adds spatial/temporal bounds
+global_mean_t = ds_xcdat.spatial.average("t")
+anomalies = ds_xcdat.temporal.departures("t", freq="month")
+```
+
+### Derived Diagnostics
+
+```python
+from weathergraph.integrations import compute_derived_diagnostics
+
+ds_diag = compute_derived_diagnostics(ds_forecast)
+# Adds: wind_speed (from u, v), geopotential_height (from z)
+```
+
+### Install Optional Dependencies
+
+```bash
+pip install 'weathergraph[metpy]'     # MetPy only
+pip install 'weathergraph[xcdat]'     # xCDAT only
+pip install 'weathergraph[climate]'   # MetPy + xCDAT + xESMF
+pip install 'weathergraph[cloud]'     # S3/GCS Zarr access
+```
 
 ---
 
@@ -254,9 +334,14 @@ pytest tests/
 - Exact graph-aware spatial tiling with tile-bundle packaging
 - Streaming autoregressive rollout and export (NetCDF4, Zarr, NPZ)
 - Configurable reference-grid export metadata
-- Six built-in data-source adapters (ERA5, ECMWF, CDS, GFS, Open-Meteo, Custom)
+- Seven built-in data-source adapters (ERA5, ECMWF, CDS, GFS, Open-Meteo, Zarr, Custom)
 - Researcher-facing CLI with forecast, inspect, visualize, and bundle-build commands
 - Pipeline integrations for Ansible, Terraform, GCP Batch, and AWS Batch
+- CF-1.11 convention compliance on all forecast output
+- Custom Xarray accessor (`ds.weathergraph.predict()`) for climatologists
+- MetPy and xCDAT integration utilities with graceful fallback
+- Derived atmospheric diagnostics (wind speed, geopotential height)
+- Cloud-native Zarr store adapter (GCS, S3, Azure)
 
 ### In Progress
 
