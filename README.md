@@ -1,5 +1,6 @@
 # WeatherGraph
 
+[![Website](https://img.shields.io/badge/website-wanderspool.github.io%2FWeatherGraph-blue?logo=github)](https://wanderspool.github.io/WeatherGraph/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-red.svg)](https://en.cppreference.com/w/cpp/20)

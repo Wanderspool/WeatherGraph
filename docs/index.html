@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeatherGraph — Neural Weather Prediction Engine</title>
+  <meta name="description" content="WeatherGraph is an open-source GNN-based global weather prediction engine combining a high-performance C++ core with a flexible Python scientific API." />
+  <meta property="og:title" content="WeatherGraph — Neural Weather Prediction Engine" />
+  <meta property="og:description" content="Graph Neural Network weather forecasting accessible to researchers on standard hardware — from laptops to cloud workstations." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #070b14;
+      --surface: #0d1424;
+      --surface2: #131c30;
+      --border: rgba(99,179,237,0.12);
+      --border2: rgba(99,179,237,0.22);
+      --accent: #3b82f6;
+      --accent2: #60a5fa;
+      --teal: #14b8a6;
+      --teal2: #2dd4bf;
+      --purple: #8b5cf6;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --radius: 12px;
+      --radius-lg: 20px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid & noise background ─────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(7,11,20,0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .nav-logo svg { flex-shrink: 0; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent2); }
+
+    .nav-cta {
+      background: var(--accent);
+      color: #fff !important;
+      padding: 7px 16px;
+      border-radius: 8px;
+      transition: background 0.2s, opacity 0.2s !important;
+    }
+    .nav-cta:hover { background: #2563eb !important; }
+
+    /* ── HERO ───────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 2rem 4rem;
+      overflow: hidden;
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: -30%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 600px;
+      background: radial-gradient(ellipse, rgba(59,130,246,0.18) 0%, rgba(20,184,166,0.08) 40%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 99px;
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin-bottom: 2rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .hero-badge span.dot {
+      width: 6px; height: 6px;
+      background: var(--teal2);
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff 30%, var(--accent2) 70%, var(--teal2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-muted);
+      max-width: 660px;
+      margin: 0 auto 2.5rem;
+      font-weight: 400;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 3.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      cursor: pointer;
+    }
+    .btn:hover { transform: translateY(-2px); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 24px rgba(59,130,246,0.35);
+    }
+    .btn-primary:hover { box-shadow: 0 8px 32px rgba(59,130,246,0.5); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+    .btn-secondary:hover { border-color: var(--accent); }
+
+    /* metrics strip */
+    .hero-metrics {
+      display: flex;
+      gap: 3rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .metric {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .metric-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent2), var(--teal2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .metric-label {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 500;
+    }
+
+    .metric-sep {
+      width: 1px;
+      height: 40px;
+      background: var(--border);
+      align-self: center;
+    }
+
+    /* ── SECTIONS ───────────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 2rem;
+    }
+
+    .section-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--teal);
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-size: clamp(1.7rem, 3.5vw, 2.4rem);
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 1rem;
+    }
+
+    .section-lead {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 620px;
+      margin-bottom: 3rem;
+    }
+
+    /* divider */
+    .full-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    /* ── FEATURE CARDS ─────────────────────────────── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(59,130,246,0.04), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.35rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ── ARCHITECTURE ───────────────────────────────── */
+    .arch-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .arch-diagram {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .arch-diagram .layer-python {
+      border: 1px solid rgba(59,130,246,0.4);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 8px;
+      color: var(--accent2);
+    }
+
+    .arch-diagram .layer-cpp {
+      border: 1px solid rgba(20,184,166,0.4);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin: 0 1.5rem;
+      color: var(--teal2);
+    }
+
+    .arch-desc h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .arch-desc p { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+
+    .arch-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .arch-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .arch-list li::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    /* ── PERF TABLE ─────────────────────────────────── */
+    .perf-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .perf-table-wrap { overflow-x: auto; border-radius: var(--radius); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th:first-child { border-radius: 12px 0 0 0; }
+    th:last-child { border-radius: 0 12px 0 0; }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:last-child td:first-child { border-radius: 0 0 0 12px; }
+    tr:last-child td:last-child { border-radius: 0 0 12px 0; }
+
+    tbody tr { background: var(--surface); transition: background 0.15s; }
+    tbody tr:hover { background: var(--surface2); }
+
+    .res-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .res-1 { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    .res-025 { background: rgba(59,130,246,0.15); color: var(--accent2); }
+    .res-01 { background: rgba(20,184,166,0.15); color: var(--teal2); }
+
+    .perf-note {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+      padding: 0.75rem 1rem;
+      background: rgba(59,130,246,0.05);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+    }
+
+    /* ── DATA SOURCES ──────────────────────────────── */
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .source-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .source-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-2px);
+    }
+
+    .source-icon {
+      font-size: 1.5rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .source-info h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent2);
+    }
+
+    .source-info p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .source-auth {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .auth-free { background: rgba(20,184,166,0.15); color: var(--teal2); }
+    .auth-key { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+    /* ── CODE BLOCK ─────────────────────────────────── */
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .code-block .kw { color: #c792ea; }
+    .code-block .fn { color: #82aaff; }
+    .code-block .str { color: #c3e88d; }
+    .code-block .cm { color: var(--text-dim); }
+    .code-block .num { color: #f78c6c; }
+
+    .code-label {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 500;
+    }
+
+    /* ── STATUS GRID ────────────────────────────────── */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+    }
+
+    .status-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .status-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .check { color: var(--teal2); flex-shrink: 0; margin-top: 1px; }
+    .wip { color: #f59e0b; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── FOOTER ─────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    .footer-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent2); }
+
+    .footer-copy {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      width: 100%;
+      text-align: center;
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 768px) {
+      .arch-box { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: 1fr; }
+      .hero-metrics { gap: 1.5rem; }
+      .metric-sep { display: none; }
+      nav .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo" id="nav-logo">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <circle cx="13" cy="13" r="12" stroke="#3b82f6" stroke-width="1.5"/>
+      <path d="M6 13 Q10 6 13 13 Q16 20 20 13" stroke="#14b8a6" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <circle cx="13" cy="13" r="2.5" fill="#3b82f6"/>
+    </svg>
+    WeatherGraph
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#performance">Performance</a></li>
+    <li><a href="#quickstart">Quick Start</a></li>
+    <li><a href="#status">Status</a></li>
+    <li><a href="https://github.com/Wanderspool/WeatherGraph" target="_blank" rel="noopener" class="nav-cta" id="nav-github">GitHub ↗</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-glow"></div>
+
+  <div class="hero-badge" id="hero-badge">
+    <span class="dot"></span>
+    Open-Source · MIT License
+  </div>
+
+  <h1>Neural Weather<br/>Prediction for Everyone</h1>
+
+  <p class="hero-sub">
+    WeatherGraph brings Graph Neural Network weather forecasting to standard research hardware —
+    from a laptop GPU to a cloud workstation — with a production-ready C++ inference core
+    and a Python scientific API researchers already know.
+  </p>
+
+  <div class="hero-buttons">
+    <a href="https://github.com/Wanderspool/WeatherGraph" target="_blank" rel="noopener" class="btn btn-primary" id="hero-github">
+      <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      View on GitHub
+    </a>
+    <a href="#quickstart" class="btn btn-secondary" id="hero-quickstart">
+      Quick Start →
+    </a>
+  </div>
+
+  <div class="hero-metrics">
+    <div class="metric">
+      <span class="metric-value">78</span>
+      <span class="metric-label">Atmospheric Channels</span>
+    </div>
+    <div class="metric-sep"></div>
+    <div class="metric">
+      <span class="metric-value">0.1°</span>
+      <span class="metric-label">Target Resolution</span>
+    </div>
+    <div class="metric-sep"></div>
+    <div class="metric">
+      <span class="metric-value">10⁻⁵</span>
+      <span class="metric-label">Accuracy Tolerance</span>
+    </div>
+    <div class="metric-sep"></div>
+    <div class="metric">
+      <span class="metric-value">6</span>
+      <span class="metric-label">Data Source Adapters</span>
+    </div>
+  </div>
+</div>
+
+<hr class="full-divider" />
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-tag">Capabilities</div>
+  <h2>Built for research-grade deployments</h2>
+  <p class="section-lead">
+    Every component is designed to run on hardware already available in research labs and
+    field offices — without sacrificing scientific rigor.
+  </p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(59,130,246,0.12);">⚡</div>
+      <h3>Zero-Copy Inference</h3>
+      <p>Direct memory mapping between Python <code style="color:var(--accent2);font-size:0.8em;">numpy/xarray</code> and the C++ ONNX core via pybind11 Buffer Protocol — no redundant data copies on the critical path.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(20,184,166,0.12);">🧠</div>
+      <h3>Multi-Accelerator Support</h3>
+      <p>CUDA, TensorRT, ROCm, and OpenVINO execution providers supported out of the box. Switch between CPU and GPU with a single parameter.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(139,92,246,0.12);">🗺️</div>
+      <h3>Exact Spatial Tiling</h3>
+      <p>Graph-aware tiling via bundle manifests enables 0.1° global inference on machines that cannot hold the full graph in memory. Mathematically exact — no approximations.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(251,146,60,0.12);">📡</div>
+      <h3>Multi-Source Data Ingestion</h3>
+      <p>Built-in adapters for ERA5, ECMWF Open Data, Copernicus CDS, NOAA GFS, and Open-Meteo. Pluggable architecture for custom sources.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(59,130,246,0.12);">💾</div>
+      <h3>Streaming Export</h3>
+      <p>Step-by-step export to NetCDF4, Zarr, and NPZ. Long multi-day rollouts write directly to disk without materializing the full trajectory in RAM.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(20,184,166,0.12);">🔬</div>
+      <h3>Reproducible Science</h3>
+      <p>Verified against reference JAX/PyTorch implementations at atol=10⁻⁵. Deterministic NaN/Inf handling, validated against historical extreme events.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(139,92,246,0.12);">📦</div>
+      <h3>Out-of-Core Processing</h3>
+      <p>Native Dask integration for processing multi-gigabyte ERA5 archives on memory-constrained machines with controlled footprint.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon" style="background:rgba(251,146,60,0.12);">🖥️</div>
+      <h3>Researcher CLI</h3>
+      <p><code style="color:var(--accent2);font-size:0.8em;">weathergraph forecast</code>, <code style="color:var(--accent2);font-size:0.8em;">inspect</code>, <code style="color:var(--accent2);font-size:0.8em;">visualize</code>, <code style="color:var(--accent2);font-size:0.8em;">build-tile-bundle</code> — a complete workflow from initial conditions to interactive map.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider" />
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-tag">Design</div>
+  <h2>Two-layer architecture</h2>
+  <p class="section-lead">Performance-critical inference is handled in C++; scientific orchestration stays in Python where researchers can iterate quickly.</p>
+
+  <div class="arch-box">
+    <div class="arch-diagram" id="arch-diagram">
+      <div class="layer-python">
+        Control Plane · Python<br/>
+        <span style="color:var(--text-dim);font-size:0.9em;">xarray · adapters · rollout · export</span>
+        <div class="layer-cpp" style="margin-top:10px;">
+          Data Plane · C++<br/>
+          <span style="color:var(--text-dim);font-size:0.9em;">ONNX Runtime · zero-copy tensors</span>
+        </div>
+      </div>
+      <div style="margin-top:12px; color:var(--text-dim); font-size:0.85em;">
+        ↓ pybind11 Buffer Protocol<br/>
+        ↓ No copy across the boundary
+      </div>
+    </div>
+    <div class="arch-desc">
+      <h3>Data Plane (C++)</h3>
+      <ul class="arch-list">
+        <li>ONNX Runtime session management with RAII</li>
+        <li>Multi-provider execution: CPU / CUDA / TensorRT / ROCm / OpenVINO</li>
+        <li>C-contiguous buffer validation before inference</li>
+        <li>Optional memory-arena and pattern-reuse controls</li>
+      </ul>
+      <br/>
+      <h3>Control Plane (Python)</h3>
+      <ul class="arch-list">
+        <li>WeatherGraphModel scientific API</li>
+        <li>Pluggable DataSourceAdapter registry</li>
+        <li>Autoregressive rollout: predict_one_step · forecast · iter_forecast</li>
+        <li>Exact tile-bundle orchestration for high-resolution runs</li>
+        <li>Structured export to NetCDF4 / Zarr / NPZ</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider" />
+
+<!-- PERFORMANCE -->
+<section id="performance">
+  <div class="section-tag">Performance</div>
+  <h2>Estimated inference times</h2>
+  <p class="section-lead">
+    10-step (60-hour) autoregressive forecast at three resolutions.
+    Based on preliminary internal testing; active work is underway to broaden hardware coverage.
+  </p>
+
+  <div class="perf-tabs">
+    <button class="tab-btn active" onclick="switchTab('gpu', this)" id="tab-gpu">Discrete GPU</button>
+    <button class="tab-btn" onclick="switchTab('cpu', this)" id="tab-cpu">CPU</button>
+  </div>
+
+  <div id="tab-gpu-content" class="tab-content active">
+    <div class="perf-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Resolution</th>
+            <th>Grid Size</th>
+            <th>RTX 3060 (6 GB)</th>
+            <th>RTX 4060 (8 GB)</th>
+            <th>RTX 4070 (8 GB)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="res-badge res-1">1.0°</span></td>
+            <td style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:0.82em;">181 × 360</td>
+            <td>~4 s</td>
+            <td>~2.5 s</td>
+            <td>~2 s</td>
+          </tr>
+          <tr>
+            <td><span class="res-badge res-025">0.25°</span></td>
+            <td style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:0.82em;">721 × 1440</td>
+            <td>~45 s</td>
+            <td>~28 s</td>
+            <td>~22 s</td>
+          </tr>
+          <tr>
+            <td><span class="res-badge res-01">0.1°</span></td>
+            <td style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:0.82em;">1801 × 3600</td>
+            <td>~18 min <span style="color:var(--text-dim);font-size:0.85em;">(tiled)</span></td>
+            <td>~12 min <span style="color:var(--text-dim);font-size:0.85em;">(tiled)</span></td>
+            <td>~9 min <span style="color:var(--text-dim);font-size:0.85em;">(tiled)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-cpu-content" class="tab-content">
+    <div class="perf-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Resolution</th>
+            <th>Grid Size</th>
+            <th>i7-12700H (14C)</th>
+            <th>Ryzen 7 7840HS (8C)</th>
+            <th>Apple M2 Pro (12C)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="res-badge res-1">1.0°</span></td>
+            <td style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:0.82em;">181 × 360</td>
+            <td>~18 s</td>
+            <td>~22 s</td>
+            <td>~15 s</td>
+          </tr>
+          <tr>
+            <td><span class="res-badge res-025">0.25°</span></td>
+            <td style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:0.82em;">721 × 1440</td>
+            <td>~8 min</td>
+            <td>~10 min</td>
+            <td>~6 min</td>
+          </tr>
+          <tr>
+            <td><span class="res-badge res-01">0.1°</span></td>
+            <td style="color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:0.82em;">1801 × 3600</td>
+            <td>~55 min <span style="color:var(--text-dim);font-size:0.85em;">(tiled)</span></td>
+            <td>~70 min <span style="color:var(--text-dim);font-size:0.85em;">(tiled)</span></td>
+            <td>~45 min <span style="color:var(--text-dim);font-size:0.85em;">(tiled)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="perf-note">
+    ⚡ These are preliminary estimates from internal development testing. Actual performance depends on the model variant, thermal headroom, background system load, and ONNX Runtime version. Tiled mode is required at 0.1° and carries additional tile-stitching overhead. <strong>Active engineering work is focused on stabilising 0.1° inference across a broader range of consumer hardware released in the last 5 years.</strong>
+  </p>
+</section>
+
+<hr class="full-divider" />
+
+<!-- QUICK START -->
+<section id="quickstart">
+  <div class="section-tag">Getting Started</div>
+  <h2>Up and running in minutes</h2>
+  <p class="section-lead">Install from source, point the model at an ERA5 initial state, and run a 10-day global forecast.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+    <div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;font-family:'JetBrains Mono',monospace;">INSTALL</p>
+      <div class="code-block" style="height:100%;">
+<span class="cm"># Install from source</span>
+<span class="kw">git</span> clone https://github.com/Wanderspool/WeatherGraph
+<span class="kw">cd</span> WeatherGraph
+<span class="kw">pip</span> install .
+
+<span class="cm"># With visualization extras</span>
+<span class="kw">pip</span> install <span class="str">".[vis]"</span>
+      </div>
+    </div>
+    <div>
+      <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;font-family:'JetBrains Mono',monospace;">CLI FORECAST</p>
+      <div class="code-block" style="height:100%;">
+<span class="kw">weathergraph</span> forecast \
+  --model-path models/weather_gnn.onnx \
+  --weights-dir data \
+  --data-source era5_netcdf \
+  --input-path initial_state.nc \
+  --steps <span class="num">40</span> \
+  --output-format zarr \
+  --output-path forecast_out
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;font-family:'JetBrains Mono',monospace;">PYTHON API</p>
+  <div class="code-block">
+    <span class="code-label">Python</span>
+<span class="kw">import</span> xarray <span class="kw">as</span> xr
+<span class="kw">from</span> weathergraph <span class="kw">import</span> WeatherGraphModel
+
+<span class="cm"># Standard CPU inference</span>
+model = WeatherGraphModel(
+    model_path=<span class="str">"models/weather_gnn.onnx"</span>,
+    weights_dir=<span class="str">"data"</span>,
+    intra_op_threads=<span class="num">4</span>,
+)
+
+<span class="cm"># GPU acceleration — one parameter change</span>
+model = WeatherGraphModel(
+    model_path=<span class="str">"models/weather_gnn.onnx"</span>,
+    weights_dir=<span class="str">"data"</span>,
+    execution_provider=<span class="str">"cuda"</span>,
+    execution_device_id=<span class="num">0</span>,
+)
+
+ds = xr.open_dataset(<span class="str">"initial_state.nc"</span>)
+
+<span class="cm"># 10-day autoregressive rollout (40 × 6h steps)</span>
+forecast = model.forecast(ds, steps=<span class="num">40</span>)
+
+<span class="cm"># Memory-efficient streaming to NetCDF4</span>
+model.forecast_export(ds, steps=<span class="num">40</span>, output_path=<span class="str">"forecast"</span>, fmt=<span class="str">"netcdf4"</span>)
+  </div>
+</section>
+
+<hr class="full-divider" />
+
+<!-- DATA SOURCES -->
+<section id="data">
+  <div class="section-tag">Data Ingestion</div>
+  <h2>Connect to any atmospheric data source</h2>
+  <p class="section-lead">Built-in adapters normalise data from major providers into the WeatherGraph input contract. No preprocessing scripts needed.</p>
+
+  <div class="sources-grid">
+    <div class="source-card">
+      <div class="source-icon">🗄️</div>
+      <div class="source-info">
+        <h4>era5_netcdf</h4>
+        <p>Local ERA5 reanalysis from NetCDF archive (Copernicus CDS or ECMWF download)</p>
+        <span class="source-auth auth-free">No auth</span>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-icon">🌐</div>
+      <div class="source-info">
+        <h4>ecmwf_open</h4>
+        <p>ECMWF Open Data — real-time global forecast, updated twice daily</p>
+        <span class="source-auth auth-free">No auth</span>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-icon">🛰️</div>
+      <div class="source-info">
+        <h4>cds_era5</h4>
+        <p>Copernicus CDS ERA5 reanalysis via API — full historical record from 1940</p>
+        <span class="source-auth auth-key">Free registration</span>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-icon">🇺🇸</div>
+      <div class="source-info">
+        <h4>gfs</h4>
+        <p>NOAA GFS global forecast via AWS Open Data S3 — 6-hourly, worldwide</p>
+        <span class="source-auth auth-free">No auth</span>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-icon">📊</div>
+      <div class="source-info">
+        <h4>open_meteo</h4>
+        <p>Open-Meteo multi-model NWP aggregator (ECMWF IFS, GFS, ICON)</p>
+        <span class="source-auth auth-free">No auth</span>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-icon">🔧</div>
+      <div class="source-info">
+        <h4>custom</h4>
+        <p>Map any file format (NetCDF, GRIB2, Zarr, HDF5) or NumPy array via configurable variable mapping</p>
+        <span class="source-auth auth-free">No auth</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider" />
+
+<!-- STATUS -->
+<section id="status">
+  <div class="section-tag">Project Status</div>
+  <h2>What's implemented, what's next</h2>
+  <p class="section-lead">WeatherGraph is in active development. Core inference and the operational 0.25° profile are stable; the 0.1° tier is the current engineering focus.</p>
+
+  <div class="status-grid">
+    <div class="status-card">
+      <h3><span style="color:var(--teal2)">✓</span> Completed</h3>
+      <ul class="status-list">
+        <li><span class="check">✓</span> C++ ONNX Runtime backend with zero-copy Python bindings</li>
+        <li><span class="check">✓</span> CPU, CUDA, TensorRT, ROCm, OpenVINO execution providers</li>
+        <li><span class="check">✓</span> Optional low-memory runtime controls</li>
+        <li><span class="check">✓</span> Exact graph-aware spatial tiling</li>
+        <li><span class="check">✓</span> Tile-bundle packaging tool</li>
+        <li><span class="check">✓</span> Streaming rollout and NetCDF4 / Zarr / NPZ export</li>
+        <li><span class="check">✓</span> 6 built-in data-source adapters</li>
+        <li><span class="check">✓</span> Researcher-facing CLI</li>
+        <li><span class="check">✓</span> Ansible / Terraform / GCP Batch / AWS Batch playbooks</li>
+        <li><span class="check">✓</span> Validation suite: accuracy, memory, stability, historical</li>
+      </ul>
+    </div>
+    <div class="status-card">
+      <h3><span style="color:#f59e0b">◐</span> In Progress</h3>
+      <ul class="status-list">
+        <li><span class="wip">◐</span> Stabilising 0.1° inference on consumer hardware (last 5 years)</li>
+        <li><span class="wip">◐</span> Published reproducible benchmark suite</li>
+        <li><span class="wip">◐</span> Automatic tile-bundle generation from arbitrary global ONNX</li>
+      </ul>
+
+      <br/>
+
+      <h3 style="margin-top:0.5rem;"><span style="color:var(--accent2)">○</span> Out of Scope (Current)</h3>
+      <ul class="status-list">
+        <li><span style="color:var(--text-dim)">○</span> Approximate spatial slicing (tiling is exact-only by design)</li>
+        <li><span style="color:var(--text-dim)">○</span> Generic graph-to-grid export for arbitrary node layouts</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider" />
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <svg width="22" height="22" viewBox="0 0 26 26" fill="none">
+      <circle cx="13" cy="13" r="12" stroke="#3b82f6" stroke-width="1.5"/>
+      <path d="M6 13 Q10 6 13 13 Q16 20 20 13" stroke="#14b8a6" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <circle cx="13" cy="13" r="2.5" fill="#3b82f6"/>
+    </svg>
+    WeatherGraph
+  </div>
+  <ul class="footer-links">
+    <li><a href="https://github.com/Wanderspool/WeatherGraph" target="_blank" rel="noopener" id="footer-github">GitHub</a></li>
+    <li><a href="https://github.com/Wanderspool/WeatherGraph/blob/main/README.md" target="_blank" rel="noopener" id="footer-docs">Documentation</a></li>
+    <li><a href="https://github.com/Wanderspool/WeatherGraph/releases" target="_blank" rel="noopener" id="footer-releases">Releases</a></li>
+    <li><a href="https://github.com/Wanderspool/WeatherGraph/blob/main/LICENSE" target="_blank" rel="noopener" id="footer-license">MIT License</a></li>
+  </ul>
+  <p class="footer-copy">© 2025 WeatherGraph contributors. Open-source neural weather prediction.</p>
+</footer>
+
+<script>
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name + '-content').classList.add('active');
+  }
+</script>
+
+</body>
+</html>
