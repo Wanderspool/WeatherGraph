@@ -7,6 +7,8 @@ from typing import Any
 
 from . import REGISTRY, WeatherGraphModel, list_sources, load_source
 from .tile_bundle import build_tile_bundle
+from .utils import get_default_cache_dir, download_file
+from pathlib import Path
 
 
 def _coerce_scalar(value: str) -> Any:
@@ -237,8 +239,30 @@ def build_parser() -> argparse.ArgumentParser:
     vis_parser.add_argument("--output", required=True, help="Path to save the generated artifact.")
     vis_parser.add_argument("--cmap", default="viridis", help="Colormap name.")
     vis_parser.add_argument("--time-index", type=int, default=0, help="Time index for HTML map generation.")
-    vis_parser.add_argument("--fps", type=int, default=5, help="Frames per second for animations.")
+    vis_parser.add_argument("--resolution", choices=["high", "medium", "low"], default="medium", help="Output resolution for animations.")
     vis_parser.set_defaults(func=_cmd_visualize)
+
+    # ── New subcommands ──
+    dl_parser = subparsers.add_parser("download-model", help="Download a model from a URL.")
+    dl_parser.add_argument("--model-url", required=True, help="URL to download.")
+    dl_parser.add_argument("--work-dir", default=None, help="Directory to save the model. Defaults to OS cache dir.")
+    dl_parser.add_argument("--output-filename", default="model.pkl", help="Name of the saved file.")
+    dl_parser.set_defaults(func=_cmd_download_model)
+
+    comp_parser = subparsers.add_parser("compile-model", help="Compile a .pkl model into ONNX.")
+    comp_parser.add_argument("--weights-file", required=True, help="Input .pkl weights file.")
+    comp_parser.add_argument("--output-file", required=True, help="Output .onnx model.")
+    comp_parser.set_defaults(func=_cmd_compile_model)
+
+    pipe_parser = subparsers.add_parser("pipeline", help="Run the full pipeline: download, compile, forecast, visualize.")
+    pipe_parser.add_argument("--work-dir", default=None, help="Directory for all artifacts. Defaults to OS cache dir.")
+    pipe_parser.add_argument("--model-url", required=True, help="URL to the original model or ONNX model.")
+    _add_source_arguments(pipe_parser)
+    _add_runtime_arguments(pipe_parser)
+    pipe_parser.add_argument("--steps", type=int, default=1, help="Number of 6-hour autoregressive steps.")
+    pipe_parser.add_argument("--vis-variable", default="t", help="Variable to visualize (e.g. 't', 'z').")
+    pipe_parser.add_argument("--vis-resolution", choices=["high", "medium", "low"], default="medium", help="Resolution for visualization.")
+    pipe_parser.set_defaults(func=_cmd_pipeline)
 
     return parser
 
@@ -400,9 +424,80 @@ def _cmd_visualize(args: argparse.Namespace) -> int:
         print(f"Map saved to {args.output}")
     else:
         print(f"Generating {args.format.upper()} animation for '{args.variable}'...")
-        create_animation(ds, args.variable, args.output, format=args.format, cmap_name=args.cmap, fps=args.fps)
+        create_animation(ds, args.variable, args.output, format=args.format, cmap_name=args.cmap, fps=args.fps, resolution=getattr(args, "resolution", "medium"))
         print(f"Animation saved to {args.output}")
 
+    return 0
+
+def _cmd_download_model(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir) if args.work_dir else get_default_cache_dir()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    out_path = work_dir / args.output_filename
+    download_file(args.model_url, out_path)
+    print(f"Model downloaded to {out_path}")
+    return 0
+
+def _cmd_compile_model(args: argparse.Namespace) -> int:
+    try:
+        from exporter.convert_to_onnx import convert_to_onnx
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from exporter.convert_to_onnx import convert_to_onnx
+
+    convert_to_onnx(args.weights_file, args.output_file)
+    return 0
+
+def _cmd_pipeline(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir) if args.work_dir else get_default_cache_dir()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Using working directory: {work_dir}")
+
+    # 1. Download Model
+    is_onnx_url = args.model_url.endswith(".onnx")
+    model_filename = "model.onnx" if is_onnx_url else "model.pkl"
+    local_model_path = work_dir / model_filename
+    if not local_model_path.exists():
+        print(f"Downloading model from {args.model_url}...")
+        download_file(args.model_url, local_model_path)
+    else:
+        print(f"Model already exists at {local_model_path}, skipping download.")
+
+    # 2. Compile to ONNX if necessary
+    if not is_onnx_url:
+        onnx_path = work_dir / "model.onnx"
+        if not onnx_path.exists():
+            print(f"Compiling {local_model_path} to {onnx_path}...")
+            # Reuse compile_model logic
+            args.weights_file = str(local_model_path)
+            args.output_file = str(onnx_path)
+            _cmd_compile_model(args)
+        else:
+            print(f"Compiled ONNX model already exists at {onnx_path}.")
+        model_path_for_inference = str(onnx_path)
+    else:
+        model_path_for_inference = str(local_model_path)
+
+    # 3. Forecast
+    print("Running forecast...")
+    args.model_path = model_path_for_inference
+    args.output_format = "netcdf4"
+    args.output_path = str(work_dir / "forecast.nc")
+    _cmd_forecast(args)
+
+    # 4. Visualize
+    print("Generating visualization...")
+    # Setup args for visualization
+    args.input = args.output_path
+    args.variable = args.vis_variable
+    args.format = "mp4"
+    args.output = str(work_dir / f"forecast_{args.vis_variable}.mp4")
+    args.cmap = "viridis"
+    args.fps = 5
+    args.resolution = args.vis_resolution
+    _cmd_visualize(args)
+
+    print(f"Pipeline complete! All artifacts saved to {work_dir}")
     return 0
 
 

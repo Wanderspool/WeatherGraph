@@ -1,3 +1,4 @@
+import argparse
 import pickle
 import jax
 import jax.numpy as jnp
@@ -10,7 +11,7 @@ import onnx
 from keisler_2022.runner import Runner
 from keisler_2022.config import Config
 
-def main():
+def convert_to_onnx(weights_file: str, output_file: str):
     print("Initializing reference-model runner...")
     config = Config()
     runner = Runner(verbose=True, config=config)
@@ -41,9 +42,9 @@ def main():
     graphs["e"].nodes["all_solar"] = runner.init_set(dummy_solar)
     graphs["e"].nodes["all_doy"] = runner.init_set(dummy_doy)
     
-    print("Loading parameters...")
+    print(f"Loading parameters from {weights_file}...")
     # Load model parameters
-    with open(runner.config.resolve_artifact(runner.config.data.weights_file), "rb") as fp:
+    with open(weights_file, "rb") as fp:
         params = pickle.load(fp)
     params = hk.data_structures.to_immutable_dict(params)
     
@@ -66,11 +67,20 @@ def main():
             # dynamic_shapes=... 
         )
         
-        print("Saving ONNX model...")
-        onnx.save(onnx_model, "weather_gnn.onnx")
+        print(f"Saving ONNX model to {output_file}...")
+        onnx.save(onnx_model, output_file)
         print("Success!")
     except Exception as e:
         print(f"Failed to convert: {e}")
+        raise
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert WeatherGraph Pickle weights to ONNX format.")
+    parser.add_argument("--weights-file", required=True, help="Path to input .pkl weights file.")
+    parser.add_argument("--output-file", required=True, help="Path to output .onnx model.")
+    args = parser.parse_args()
+    
+    convert_to_onnx(args.weights_file, args.output_file)
 
 if __name__ == "__main__":
     main()

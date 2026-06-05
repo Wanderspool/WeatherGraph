@@ -113,7 +113,7 @@ def create_interactive_map(ds, variable, time_index=0, cmap_name="viridis"):
     return m
 
 
-def create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis", fps=5):
+def create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis", fps=5, resolution="medium"):
     """
     Creates an MP4 or GIF animation over the time dimension of the dataset.
 
@@ -131,6 +131,8 @@ def create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis
         Matplotlib colormap name.
     fps : int
         Frames per second.
+    resolution : str
+        'low' (72 dpi), 'medium' (150 dpi), or 'high' (300 dpi).
     """
     _check_vis_available()
 
@@ -143,6 +145,10 @@ def create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis
     num_frames = len(ds['time'])
     if num_frames == 0:
         raise ValueError("Time dimension is empty.")
+
+    # Map resolution to DPI
+    dpi_map = {"low": 72, "medium": 150, "high": 300}
+    dpi = dpi_map.get(resolution.lower(), 150)
 
     # Select the lowest pressure level if 'level' exists
     data_var = ds[variable]
@@ -159,7 +165,7 @@ def create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis
     frames = []
     
     # We use a single matplotlib figure and update it to be fast
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(10, 5), dpi=dpi)
     ax.set_title(f"{variable} animation")
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
