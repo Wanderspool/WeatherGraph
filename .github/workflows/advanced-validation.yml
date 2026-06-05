@@ -1,0 +1,126 @@
+name: Advanced Climate Model Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, testing/multi-res-scientific-v2 ]
+
+jobs:
+  validate-climate-gnn:
+    name: Validate ${{ matrix.model }} (${{ matrix.resolution }}°)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: "Keisler-2022"
+            resolution: 1.0
+            url: "https://huggingface.co/Wanderspool/Keisler_2022/resolve/main/keisler_2022.onnx"
+            lat: 181
+            lon: 360
+          - model: "GraphCast-Lite"
+            resolution: 0.25
+            url: "none"
+            lat: 721
+            lon: 1440
+          - model: "WeatherGraph-0.1"
+            resolution: 0.1
+            url: "none"
+            lat: 1801
+            lon: 3600
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install numpy xarray pandas dask netCDF4 pytest psutil memory-profiler onnx pybind11 matplotlib tqdm requests
+          
+      - name: Build WeatherGraph engine
+        id: engine
+        uses: ./.github/actions/setup-weathergraph
+        with:
+          onnxruntime-version: '1.18.0'
+          
+      - name: Prepare Models and Weights
+        env:
+          MODEL_NAME: ${{ matrix.model }}
+          MODEL_URL: ${{ matrix.url }}
+          RESOLUTION: ${{ matrix.resolution }}
+        run: |
+          mkdir -p models data/weights data/era5_archives
+          if [ "$MODEL_URL" != "none" ]; then
+            python scripts/download_real_model.py
+          else
+            python scripts/prepare_multi_res_testing.py --resolution $RESOLUTION --base-dir test_artifacts
+            cp test_artifacts/res_${RESOLUTION}/weights/* data/weights/
+            if [ -f test_artifacts/res_${RESOLUTION}/models/model.onnx ]; then
+              cp test_artifacts/res_${RESOLUTION}/models/model.onnx models/${MODEL_NAME}.onnx
+            else
+              cp test_artifacts/res_${RESOLUTION}/models/tile.onnx models/${MODEL_NAME}.onnx
+            fi
+          fi
+          
+      - name: Run Hindcast Validation
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+          WEATHERGRAPH_ONNX_MODEL: models/${{ matrix.model }}.onnx
+          KEISLER_WEIGHTS_DIR: data/weights
+          WEATHERGRAPH_ENABLE_EXTENDED_VALIDATION: 1
+        run: |
+          python scripts/generate_test_data.py data/era5_archives/20050823_init.nc ${{ matrix.lat }} ${{ matrix.lon }}
+          python scripts/generate_test_data.py data/era5_archives/20050823_t10.nc ${{ matrix.lat }} ${{ matrix.lon }}
+          
+          if [ "${{ matrix.resolution }}" == "1.0" ]; then
+            pytest tests/test_historical_validation.py -v -s
+          fi
+          
+      - name: Generate Scientific Report
+        run: |
+          START_TIME=$(date +%s.%N)
+          if [ "${{ matrix.resolution }}" == "0.1" ] || [ "${{ matrix.resolution }}" == "0.25" ]; then
+             python -m weathergraph.cli forecast \
+              --model-path models/${{ matrix.model }}.onnx \
+              --weights-dir data/weights \
+              --input-path data/era5_archives/20050823_init.nc \
+              --steps 10 \
+              --output-path forecast_output \
+              --output-format netcdf4 \
+              --spatial-tiling \
+              --tile-bundle-path test_artifacts/res_${{ matrix.resolution }}/bundle \
+              --tile-state-backend memmap
+          else
+             python -m weathergraph.cli forecast \
+              --model-path models/${{ matrix.model }}.onnx \
+              --weights-dir data/weights \
+              --input-path data/era5_archives/20050823_init.nc \
+              --steps 10 \
+              --output-path forecast_output \
+              --output-format netcdf4
+          fi
+          END_TIME=$(date +%s.%N)
+          DURATION=$(echo "$END_TIME - $START_TIME" | bc)
+          echo "WEATHERGRAPH_INFERENCE_TIME=$DURATION" >> $GITHUB_ENV
+            
+          python scripts/generate_scientific_report.py \
+            --prediction forecast_output/z_500hPa.nc \
+            --truth data/era5_archives/20050823_t10.nc \
+            --output-dir validation_report
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+          
+      - name: Upload Analysis Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-${{ matrix.model }}-${{ matrix.resolution }}
+          path: |
+            validation_report/
+            forecast_output/

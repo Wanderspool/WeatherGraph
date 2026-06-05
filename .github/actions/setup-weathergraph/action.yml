@@ -65,7 +65,7 @@ runs:
         cmake --build build --parallel "$(nproc)"
 
         mkdir -p weathergraph/core
-        cp build/weathergraph_backend.so weathergraph/core/
+        cp build/weathergraph_backend*.so weathergraph/core/
         cp onnxruntime-sdk/lib/libonnxruntime*.so* weathergraph/core/
 
         echo "core-dir=$(pwd)/weathergraph/core" >> "$GITHUB_OUTPUT"

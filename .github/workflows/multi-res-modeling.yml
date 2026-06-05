@@ -1,0 +1,53 @@
+name: Multi-Resolution Modeling Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, testing/multi-res ]
+
+jobs:
+  test-resolutions:
+    name: Test Res ${{ matrix.resolution }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        resolution: [1.0, 0.25, 0.1]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install numpy xarray pandas dask netCDF4 pytest onnx pybind11
+          
+      - name: Build WeatherGraph engine
+        id: engine
+        uses: ./.github/actions/setup-weathergraph
+        with:
+          onnxruntime-version: '1.18.0'
+          
+      - name: Prepare Test Artifacts
+        run: |
+          python scripts/prepare_multi_res_testing.py --resolution ${{ matrix.resolution }}
+          
+      - name: Run Multi-Resolution Test
+        env:
+          PYTHONPATH: .
+          LD_LIBRARY_PATH: ${{ steps.engine.outputs.core-dir }}
+          TEST_ARTIFACTS_DIR: test_artifacts
+          WEATHERGRAPH_TEST_RESOLUTION: ${{ matrix.resolution }}
+        run: |
+          pytest tests/test_multi_res.py -v -s
+          
+      - name: Upload Test Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-res-${{ matrix.resolution }}
+          path: test_artifacts/res_${{ matrix.resolution }}/
