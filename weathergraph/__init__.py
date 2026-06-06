@@ -1,4 +1,4 @@
-from .model import WeatherGraphModel
+from .model import WeatherGraphModel, EnsembleStats
 from .data_sources import (
     DataSourceAdapter,
     ERA5NetCDFAdapter,

@@ -1,4 +1,5 @@
 import json
+import re
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -29,6 +30,44 @@ except ImportError:
     # If not in the package, try local build dir (for dev)
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'build'))
     import weathergraph_backend
+
+
+class EnsembleStats:
+    """Container for O(1)-memory ensemble inference results.
+
+    Returned by :meth:`WeatherGraphModel.predict_ensemble`.
+
+    Attributes
+    ----------
+    mean : xr.Dataset or np.ndarray
+        Ensemble mean.  Shape ``(agg_steps, nodes, 78)`` when raw,
+        or CF-compliant ``Dataset(time, level, lat, lon)`` when
+        ``as_dataset=True``.
+    std_dev : xr.Dataset or np.ndarray
+        Ensemble standard deviation (spread / uncertainty).
+    probabilities : dict[str, xr.DataArray or np.ndarray]
+        Probability maps for each named threshold rule.  Values
+        range from 0.0 (no ensemble member exceeded the threshold)
+        to 1.0 (all members exceeded it).
+    members : int
+        Number of ensemble members used.
+    steps : int
+        Total number of autoregressive steps executed.
+    aggregated_steps : list[int]
+        Indices of the steps for which statistics were collected.
+    """
+    __slots__ = ('mean', 'std_dev', 'probabilities',
+                 'members', 'steps', 'aggregated_steps')
+
+    def __init__(self, mean, std_dev, probabilities,
+                 members, steps, aggregated_steps):
+        self.mean = mean
+        self.std_dev = std_dev
+        self.probabilities = probabilities
+        self.members = members
+        self.steps = steps
+        self.aggregated_steps = aggregated_steps
+
 
 
 def _normalize_execution_provider(execution_provider):
@@ -153,7 +192,8 @@ class WeatherGraphModel:
                  tile_state_backend="ram",
                  tile_state_dir=None,
                  cuda_device_id=None,
-                 cuda_gpu_mem_limit=None):
+                 cuda_gpu_mem_limit=None,
+                 constraints_model_path=None):
         """
         Initialize the high-performance C++ engine.
 
@@ -232,6 +272,7 @@ class WeatherGraphModel:
         self.tile_bundle_path = tile_bundle_path
         self.tile_state_backend = _normalize_tile_state_backend(tile_state_backend)
         self.tile_state_dir = tile_state_dir
+        self.constraints_model_path = constraints_model_path
         self.tile_bundle = None
         self._tile_engines = {}
         self._tile_state_workspace = None
@@ -272,6 +313,7 @@ class WeatherGraphModel:
             "tile_bundle_path": tile_bundle_path,
             "tile_state_backend": self.tile_state_backend,
             "tile_state_dir": tile_state_dir,
+            "constraints_model_path": self.constraints_model_path,
         }
 
         if self.spatial_tiling:
@@ -369,6 +411,7 @@ class WeatherGraphModel:
             execution_memory_limit=self.execution_memory_limit,
             disable_cpu_ep_fallback=self.disable_cpu_ep_fallback,
             execution_provider_options=self.execution_provider_options,
+            constraints_model_path=self.constraints_model_path or "",
         )
 
     def _load_tile_bundle(self, tile_bundle_path):
@@ -412,17 +455,28 @@ class WeatherGraphModel:
                 raise ValueError("Tile bundle output indices must lie within the global node range.")
             if np.unique(output_indices).size != output_indices.size:
                 raise ValueError("Tile bundle output indices must be unique within each tile.")
-            if covered_nodes[output_indices].any():
-                raise ValueError("Tile bundle output coverage must not overlap across tiles.")
+            
+            tile_spec = {
+                "id": tile.get("id", f"tile_{index:03d}"),
+                "model_path": str(bundle_root / tile["model_path"]),
+                "input_indices": input_indices,
+                "output_indices": output_indices,
+            }
+            
+            if "output_weights_path" in tile:
+                output_weights = np.asarray(
+                    np.load(bundle_root / tile["output_weights_path"]),
+                    dtype=np.float32,
+                )
+                if output_weights.shape != output_indices.shape:
+                    raise ValueError("Tile bundle output_weights must match output_indices shape.")
+                tile_spec["output_weights"] = output_weights
+            else:
+                if covered_nodes[output_indices].any():
+                    raise ValueError("Tile bundle output coverage must not overlap across tiles unless output_weights_path is provided for halo exchange.")
+
             covered_nodes[output_indices] = True
-            tile_specs.append(
-                {
-                    "id": tile.get("id", f"tile_{index:03d}"),
-                    "model_path": str(bundle_root / tile["model_path"]),
-                    "input_indices": input_indices,
-                    "output_indices": output_indices,
-                }
-            )
+            tile_specs.append(tile_spec)
 
         if not tile_specs:
             raise ValueError("Tile bundle must define at least one tile.")
@@ -481,6 +535,10 @@ class WeatherGraphModel:
             )
 
         output_buffer = self._allocate_state_buffer(self.tile_bundle["global_output_shape"], "tile_output")
+        weight_buffer = self._allocate_state_buffer(self.tile_bundle["global_output_shape"], "tile_weight")
+        output_buffer[...] = 0.0
+        weight_buffer[...] = 0.0
+        
         for tile in self.tile_bundle["tiles"]:
             tile_input = np.ascontiguousarray(input_buffer[:, tile["input_indices"], :])
             tile_output = self._get_tile_engine(tile["model_path"]).predict(tile_input)
@@ -490,7 +548,17 @@ class WeatherGraphModel:
                 raise ValueError(
                     f"Tile '{tile['id']}' produced shape {tile_output.shape}, expected {expected_tile_shape}."
                 )
-            output_buffer[:, tile["output_indices"], :] = tile_output
+            
+            if "output_weights" in tile:
+                weights = tile["output_weights"][np.newaxis, :, np.newaxis]
+                output_buffer[:, tile["output_indices"], :] += tile_output * weights
+                weight_buffer[:, tile["output_indices"], :] += weights
+            else:
+                output_buffer[:, tile["output_indices"], :] += tile_output
+                weight_buffer[:, tile["output_indices"], :] += 1.0
+
+        np.maximum(weight_buffer, 1e-8, out=weight_buffer)
+        output_buffer /= weight_buffer
 
         if isinstance(output_buffer, np.memmap):
             output_buffer.flush()
@@ -867,3 +935,325 @@ class WeatherGraphModel:
         # for demonstration, but they could be hardcoded as constants too.
         # Here we pass them if the engine expects them.
         return self.engine.predict(input_data)
+
+    # ── Ensemble Inference ────────────────────────────────────────────────────
+
+    def _channel_index(self, var_name, level_hpa):
+        """Map ``(var_name, level_hpa)`` to a flat channel index in ``[0..77]``.
+
+        The 78-channel ordering is ``levels × vars``: for each pressure
+        level the six variables appear in the order
+        ``['z', 'q', 't', 'u', 'v', 'w']``.
+
+        Parameters
+        ----------
+        var_name : str
+            One of ``'z'``, ``'q'``, ``'t'``, ``'u'``, ``'v'``, ``'w'``.
+        level_hpa : int
+            Pressure level in hPa (e.g. 850, 1000).
+
+        Returns
+        -------
+        int
+        """
+        var_idx = self.level_vars.index(var_name)
+        level_idx = self.levels.index(level_hpa)
+        return level_idx * len(self.level_vars) + var_idx
+
+    def _build_channel_scales(self, perturbation_scale):
+        """Expand a perturbation specification to ``float32[78]``.
+
+        Parameters
+        ----------
+        perturbation_scale : dict[str, float] | float | None
+            Per-variable σ (e.g. ``{"t": 0.5, "q": 0.001}``),
+            a scalar applied to all dynamic channels, or ``None``
+            for no perturbation.
+
+        Returns
+        -------
+        np.ndarray
+            ``float32[78]`` with per-channel σ values.
+        """
+        scales = np.zeros(78, dtype=np.float32)
+        if perturbation_scale is None:
+            return scales
+        if isinstance(perturbation_scale, (int, float)):
+            # Scalar fallback: apply to all dynamic channels (all except z)
+            for level in self.levels:
+                for var in self.level_vars:
+                    if var != 'z':
+                        scales[self._channel_index(var, level)] = float(perturbation_scale)
+            return scales
+        # dict: per-variable σ
+        for var_name, sigma in perturbation_scale.items():
+            if var_name not in self.level_vars:
+                raise ValueError(
+                    f"Unknown variable '{var_name}' in perturbation_scale. "
+                    f"Valid: {self.level_vars}"
+                )
+            for level in self.levels:
+                scales[self._channel_index(var_name, level)] = float(sigma)
+        return scales
+
+    _THRESHOLD_RE = re.compile(
+        r'^\s*([a-z]+)(?:@(\d+))?\s*([<>])\s*([\d.eE+\-]+)\s*$'
+    )
+
+    def _parse_threshold_expr(self, name, expr):
+        """Parse a researcher-friendly threshold expression.
+
+        Supported forms::
+
+            "t@850 < 273.15"   → single rule on channel t at 850 hPa
+            "t < 250.0"       → 13 rules (one per pressure level)
+            "q@1000 > 0.015"  → single rule, operator ">"
+
+        Parameters
+        ----------
+        name : str
+            Human-readable rule name (e.g. ``"frost_risk"``).
+        expr : str
+            Threshold expression.
+
+        Returns
+        -------
+        list of tuple[str, int, str, float]
+            ``[(name, channel_idx, op_str, value), ...]``
+        """
+        match = self._THRESHOLD_RE.match(expr.strip())
+        if not match:
+            raise ValueError(
+                f"Invalid threshold expression '{expr}' for rule '{name}'. "
+                f"Expected format: 'var@level op value' or 'var op value'."
+            )
+        var_name = match.group(1)
+        level_str = match.group(2)
+        op = match.group(3)
+        value = float(match.group(4))
+
+        if var_name not in self.level_vars:
+            raise ValueError(
+                f"Unknown variable '{var_name}' in threshold '{name}'. "
+                f"Valid: {self.level_vars}"
+            )
+
+        rules = []
+        if level_str is not None:
+            level_hpa = int(level_str)
+            if level_hpa not in self.levels:
+                raise ValueError(
+                    f"Unknown pressure level {level_hpa} in threshold '{name}'. "
+                    f"Valid: {self.levels}"
+                )
+            ch_idx = self._channel_index(var_name, level_hpa)
+            rules.append((name, ch_idx, op, value))
+        else:
+            # Expand to all pressure levels
+            for level in self.levels:
+                ch_idx = self._channel_index(var_name, level)
+                sub_name = f"{name}@{level}"
+                rules.append((sub_name, ch_idx, op, value))
+        return rules
+
+    def predict_ensemble(
+        self,
+        initial_ds,
+        steps=40,
+        members=50,
+        perturbation_scale=None,
+        thresholds=None,
+        aggregate_steps=None,
+        seed=0,
+        as_dataset=True,
+    ):
+        """O(1)-memory ensemble inference with Welford aggregation.
+
+        Runs ``members`` perturbed autoregressive trajectories of length
+        ``steps`` inside a single C++ call.  Memory consumption does
+        **not** depend on ``members`` — only the mean, M2-accumulator,
+        and two work buffers are allocated.
+
+        Parameters
+        ----------
+        initial_ds : xr.Dataset or DataSourceAdapter
+            Initial atmospheric state.
+        steps : int
+            Number of 6-hour autoregressive steps.
+        members : int
+            Ensemble size (number of perturbed trajectories).
+        perturbation_scale : dict[str, float] | float | None
+            Per-variable standard deviation σ of additive Gaussian
+            noise applied **on every autoregressive step**.
+            Example: ``{"t": 0.5, "q": 0.001, "u": 0.3, "v": 0.3,
+            "w": 0.01}``.  A scalar applies to all dynamic channels.
+            ``None`` → no perturbation (deterministic ensemble).
+        thresholds : dict[str, str] | None
+            Named threshold rules using researcher-friendly syntax.
+            Example: ``{"frost": "t@850 < 273.15",
+            "rain": "q@1000 > 0.015"}``.
+        aggregate_steps : list[int] | None
+            Which autoregressive steps to aggregate statistics for.
+            ``None`` → all steps.  Use selective steps (e.g.
+            ``[9, 19, 29, 39]``) to reduce memory at high resolutions.
+        seed : int
+            PRNG seed.  ``0`` → non-deterministic.
+        as_dataset : bool
+            If ``True`` and a reference grid is configured, return
+            CF-compliant ``xr.Dataset`` objects.  Otherwise return
+            raw numpy arrays.
+
+        Returns
+        -------
+        EnsembleStats
+            Container with ``.mean``, ``.std_dev``, and
+            ``.probabilities`` attributes.
+        """
+        if members < 1:
+            raise ValueError("members must be >= 1.")
+        if steps < 1:
+            raise ValueError("steps must be >= 1.")
+
+        # Prepare input tensor
+        input_buffer = self._prepare_input(self._resolve_dataset(initial_ds))
+        if self.spatial_tiling:
+            input_buffer = self._materialize_state_buffer(input_buffer, "ensemble_input")
+
+        # Build per-channel scales
+        channel_scales = self._build_channel_scales(perturbation_scale)
+
+        # Parse threshold expressions into parallel C++ vectors
+        t_channels = []
+        t_values = []
+        t_ops = []
+        t_names = []
+        if thresholds:
+            for rule_name, expr in thresholds.items():
+                for (name, ch_idx, op, val) in self._parse_threshold_expr(rule_name, expr):
+                    t_names.append(name)
+                    t_channels.append(ch_idx)
+                    t_ops.append(op)
+                    t_values.append(val)
+
+        # Aggregate steps
+        agg_list = list(aggregate_steps) if aggregate_steps else []
+
+        # Call C++ ensemble core
+        raw_result = self.engine.predict_ensemble(
+            input_buffer,
+            steps=steps,
+            members=members,
+            channel_scales=channel_scales,
+            threshold_channels=t_channels,
+            threshold_values=t_values,
+            threshold_ops=t_ops,
+            threshold_names=t_names,
+            aggregate_steps=agg_list,
+            seed=seed,
+        )
+
+        # raw_result: EnsembleResult with .mean, .std_dev, .probabilities,
+        #             .total_members, .total_steps, .aggregated_step_indices
+        agg_indices = list(raw_result.aggregated_step_indices)
+        mean_raw = np.asarray(raw_result.mean)      # [agg, nodes, 78]
+        std_raw = np.asarray(raw_result.std_dev)     # [agg, nodes, 78]
+        prob_raw = {k: np.asarray(v)
+                    for k, v in dict(raw_result.probabilities).items()}
+
+        if not as_dataset or self.reference_grid_shape is None:
+            return EnsembleStats(
+                mean=mean_raw,
+                std_dev=std_raw,
+                probabilities=prob_raw,
+                members=members,
+                steps=steps,
+                aggregated_steps=agg_indices,
+            )
+
+        # Build CF-compliant xr.Dataset from raw arrays
+        lat, lon = self._reference_grid_coordinates(dtype=np.float64)
+        lat_count, lon_count = self.reference_grid_shape
+        node_count = lat_count * lon_count
+        n_levels = len(self.levels)
+        n_vars = len(self.level_vars)
+        agg_count = len(agg_indices)
+
+        # Time coordinates based on aggregated step indices
+        times = pd.date_range(
+            start="2000-01-01", periods=steps, freq="6h",
+        )
+        agg_times = times[agg_indices]
+
+        def _raw_to_dataset(raw_array):
+            """Convert [agg, nodes, 78] → xr.Dataset(time, level, lat, lon)."""
+            data_vars = {}
+            for vi, var_name in enumerate(self.level_vars):
+                cube = np.empty(
+                    (agg_count, n_levels, lat_count, lon_count),
+                    dtype=np.float32,
+                )
+                for ai in range(agg_count):
+                    flat = raw_array[ai, :node_count, :]
+                    grid = flat.reshape(lat_count, lon_count, n_levels * n_vars)
+                    for li in range(n_levels):
+                        ch = li * n_vars + vi
+                        cube[ai, li, :, :] = grid[:, :, ch]
+                attrs = dict(CF_VARIABLE_ATTRS.get(var_name, {}))
+                data_vars[var_name] = xr.DataArray(
+                    cube,
+                    dims=["time", "level", "lat", "lon"],
+                    attrs=attrs,
+                )
+            coords = {
+                "time": ("time", agg_times,
+                         dict(CF_COORDINATE_ATTRS["time"])),
+                "level": ("level",
+                          np.array(self.levels, dtype=np.int32),
+                          dict(CF_COORDINATE_ATTRS["level"])),
+                "lat": ("lat",
+                        np.asarray(lat, dtype=np.float64),
+                        dict(CF_COORDINATE_ATTRS["latitude"])),
+                "lon": ("lon",
+                        np.asarray(lon, dtype=np.float64),
+                        dict(CF_COORDINATE_ATTRS["longitude"])),
+            }
+            return xr.Dataset(data_vars, coords=coords,
+                              attrs=_global_attrs())
+
+        mean_ds = _raw_to_dataset(mean_raw)
+        std_ds = _raw_to_dataset(std_raw)
+
+        # Convert probability maps to DataArrays
+        prob_ds = {}
+        for rule_name, prob_array in prob_raw.items():
+            # prob_array: [agg, nodes]
+            prob_grid = np.empty(
+                (agg_count, lat_count, lon_count), dtype=np.float32,
+            )
+            for ai in range(agg_count):
+                prob_grid[ai, :, :] = prob_array[
+                    ai, :node_count
+                ].reshape(lat_count, lon_count)
+
+            prob_ds[rule_name] = xr.DataArray(
+                prob_grid,
+                dims=["time", "lat", "lon"],
+                coords={
+                    "time": agg_times,
+                    "lat": np.asarray(lat, dtype=np.float64),
+                    "lon": np.asarray(lon, dtype=np.float64),
+                },
+                attrs={
+                    "long_name": f"Probability: {rule_name}",
+                    "units": "1",
+                },
+            )
+
+        return EnsembleStats(
+            mean=mean_ds,
+            std_dev=std_ds,
+            probabilities=prob_ds,
+            members=members,
+            steps=steps,
+            aggregated_steps=agg_indices,
+        )

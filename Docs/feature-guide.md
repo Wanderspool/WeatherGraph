@@ -64,6 +64,7 @@ Main public entry points:
 - `forecast()`
 - `iter_forecast()`
 - `forecast_export()`
+- `predict_ensemble()`
 
 ## 4. Strict Atmospheric Input Contract
 
@@ -140,6 +141,17 @@ Behavior:
 
 - `netcdf4` and `zarr` stream step-by-step to disk.
 - `npz` still materializes the trajectory first because the archive format is not append-friendly.
+
+### `predict_ensemble()`
+
+Use this when you need probabilistic forecasts (ensemble variance, threshold probabilities).
+
+Trade-off:
+
+- Calculates aggregated statistics (mean, variance) and threshold probabilities on the fly in C++ using Welford's algorithm.
+- Uses $O(1)$ memory regarding the number of ensemble members — it does not materialize every scenario in RAM.
+- Applies per-channel Gaussian noise at every autoregressive step to physically simulate diverging scenarios.
+- Allows filtering output down to specific `aggregate_steps` to heavily reduce the time-dimension footprint (especially critical for high-resolution 0.1° runs).
 
 ## 7. Optional ONNX Runtime Controls
 
@@ -352,3 +364,76 @@ Not implemented yet:
 - Exporter experiments: `exporter/`
 - Tests and contract verification: `tests/`
 - Operational usage examples: `examples/`
+## Data Sanitization & Hard Constraints
+
+WeatherGraph provides built-in mechanisms to maintain model stability and physical consistency during long rollouts:
+
+1. **Data Sanitization**: Before every inference step, the C++ engine scans the input state. Any `NaN` or `Inf` values are immediately replaced with `0.0`. This prevents bad historical data or numerical instability from permanently corrupting the autoregressive state.
+2. **Hard Constraints**: You can supply an optional ONNX model representing physical constraints. This secondary model runs zero-copy *in-place* on the output of the main model inside the C++ backend.
+
+### Implementing Hard Constraints
+
+To implement physical bounds (like preventing negative humidity or capping extreme wind speeds), you can build a small ONNX graph that takes the atmospheric state tensor as input and returns the constrained tensor. 
+
+Because the C++ engine executes this constraints graph *in-place* using the same memory buffers, it avoids costly memory allocations and keeps the autoregressive loop extremely fast.
+
+**Example: Building a Constraint Graph with PyTorch**
+
+This example script generates a constraint graph that clamps specific humidity (e.g., at channel index 6) to a minimum of 0.0, ensuring non-negative moisture during inference:
+
+```python
+import torch
+
+class WeatherConstraints(torch.nn.Module):
+    def forward(self, x):
+        # x shape: [1, nodes, 78] (batch_size, num_nodes, channels)
+        
+        # Clone or modify the tensor
+        # For ONNX export, we can reconstruct the tensor or use in-place-like ops.
+        # Example: specific humidity is at channel index 6.
+        # We clamp it to be >= 0.0
+        q_clamped = torch.clamp(x[:, :, 6:7], min=0.0)
+        
+        # Reconstruct the tensor with the clamped channel
+        out = torch.cat([
+            x[:, :, :6],
+            q_clamped,
+            x[:, :, 7:]
+        ], dim=-1)
+        
+        return out
+
+# Export the graph to ONNX
+model = WeatherConstraints()
+dummy_input = torch.randn(1, 40962, 78) # Dynamic node count is supported
+torch.onnx.export(
+    model, 
+    dummy_input, 
+    "humidity_constraint.onnx",
+    input_names=["input"],
+    output_names=["output"],
+    dynamic_axes={"input": {1: "nodes"}, "output": {1: "nodes"}}, # Crucial for varying resolutions
+    opset_version=15
+)
+```
+
+**Using the Constraints Graph**
+
+Simply pass the generated ONNX file to `WeatherGraphModel`:
+
+```python
+model = WeatherGraphModel(
+    model_path="models/weather_gnn.onnx",
+    weights_dir="data",
+    constraints_model_path="humidity_constraint.onnx"
+)
+```
+
+The C++ backend will automatically load `humidity_constraint.onnx` and apply it seamlessly at the end of every autoregressive step, keeping the simulation physically consistent over long rollouts without any Python-side intervention.
+
+## Halo Exchange for Tiled Inference
+
+When running high-resolution 0.1° models via spatial tiling, independent tiles can introduce discontinuities or "seams" at their boundaries.
+WeatherGraph supports **Halo Exchange** out of the box if `output_weights_path` is specified in the tile bundle manifest.
+- Outputs from overlapping tiles are multiplied by their respective spatial weights (e.g., a 2D Hann window).
+- Overlapping regions are accumulated and normalized by the total weight dynamically, eliminating seams entirely.

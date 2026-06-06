@@ -242,6 +242,44 @@ def build_parser() -> argparse.ArgumentParser:
     vis_parser.add_argument("--resolution", choices=["high", "medium", "low"], default="medium", help="Output resolution for animations.")
     vis_parser.set_defaults(func=_cmd_visualize)
 
+    # ── Ensemble subcommand ──
+    ensemble_parser = subparsers.add_parser(
+        "ensemble",
+        help="Run O(1)-memory ensemble inference with Welford aggregation.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    _add_runtime_arguments(ensemble_parser)
+    _add_source_arguments(ensemble_parser)
+    ensemble_parser.add_argument("--steps", type=int, default=40, help="Number of 6-hour autoregressive steps.")
+    ensemble_parser.add_argument("--members", type=int, default=50, help="Number of ensemble members.")
+    ensemble_parser.add_argument(
+        "--perturbation-scale",
+        default=None,
+        help='Per-variable σ as JSON (e.g. \'{"t": 0.5, "q": 0.001}\') or a scalar float.',
+    )
+    ensemble_parser.add_argument(
+        "--threshold",
+        action="append",
+        default=[],
+        metavar="NAME=EXPR",
+        help='Named threshold rule.  Example: frost=t@850<273.15.  May be repeated.',
+    )
+    ensemble_parser.add_argument(
+        "--aggregate-steps",
+        default=None,
+        help="Comma-separated step indices to aggregate (e.g. 9,19,29,39). Default: all steps.",
+    )
+    ensemble_parser.add_argument("--seed", type=int, default=0, help="PRNG seed (0 = non-deterministic).")
+    ensemble_parser.add_argument(
+        "--output-format",
+        choices=["none", "netcdf4", "zarr"],
+        default="none",
+        help="Export format for ensemble mean/std_dev.",
+    )
+    ensemble_parser.add_argument("--output-path", default=None, help="Export destination directory.")
+    ensemble_parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
+    ensemble_parser.set_defaults(func=_cmd_ensemble)
+
     # ── New subcommands ──
     dl_parser = subparsers.add_parser("download-model", help="Download a model from a URL.")
     dl_parser.add_argument("--model-url", required=True, help="URL to download.")
@@ -410,6 +448,83 @@ def _cmd_forecast(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ensemble(args: argparse.Namespace) -> int:
+    if args.steps <= 0:
+        raise ValueError("steps must be >= 1.")
+    if args.members <= 0:
+        raise ValueError("members must be >= 1.")
+
+    model = build_model(args)
+    source = build_source(args)
+
+    # Parse perturbation scale
+    perturbation_scale = None
+    if args.perturbation_scale is not None:
+        raw = args.perturbation_scale.strip()
+        if raw.startswith("{"):
+            perturbation_scale = json.loads(raw)
+        else:
+            perturbation_scale = float(raw)
+
+    # Parse thresholds: NAME=EXPR
+    thresholds = None
+    if args.threshold:
+        thresholds = {}
+        for item in args.threshold:
+            name, sep, expr = item.partition("=")
+            if not sep:
+                raise ValueError(f"Invalid --threshold format: {item}. Expected NAME=EXPR.")
+            thresholds[name.strip()] = expr.strip()
+
+    # Parse aggregate steps
+    aggregate_steps = None
+    if args.aggregate_steps is not None:
+        aggregate_steps = [
+            int(s.strip()) for s in args.aggregate_steps.split(",") if s.strip()
+        ]
+
+    stats = model.predict_ensemble(
+        initial_ds=source,
+        steps=args.steps,
+        members=args.members,
+        perturbation_scale=perturbation_scale,
+        thresholds=thresholds,
+        aggregate_steps=aggregate_steps,
+        seed=args.seed,
+        as_dataset=(args.output_format != "none"),
+    )
+
+    result = {
+        "mode": "predict_ensemble",
+        "members": stats.members,
+        "steps": stats.steps,
+        "aggregated_steps": stats.aggregated_steps,
+        "probability_rules": list(stats.probabilities.keys()) if stats.probabilities else [],
+    }
+
+    if args.output_format != "none" and args.output_path:
+        import os
+        os.makedirs(args.output_path, exist_ok=True)
+        if hasattr(stats.mean, 'to_netcdf'):
+            if args.output_format == "netcdf4":
+                stats.mean.to_netcdf(os.path.join(args.output_path, "ensemble_mean.nc"))
+                stats.std_dev.to_netcdf(os.path.join(args.output_path, "ensemble_std_dev.nc"))
+            elif args.output_format == "zarr":
+                stats.mean.to_zarr(os.path.join(args.output_path, "ensemble_mean.zarr"), mode="w")
+                stats.std_dev.to_zarr(os.path.join(args.output_path, "ensemble_std_dev.zarr"), mode="w")
+            for name, da in stats.probabilities.items():
+                safe_name = name.replace("@", "_at_").replace(" ", "_")
+                if args.output_format == "netcdf4":
+                    da.to_netcdf(os.path.join(args.output_path, f"prob_{safe_name}.nc"))
+                elif args.output_format == "zarr":
+                    da.to_zarr(os.path.join(args.output_path, f"prob_{safe_name}.zarr"), mode="w")
+        result["output_path"] = args.output_path
+        result["output_format"] = args.output_format
+
+    _emit_result(result, args.json)
+    return 0
+
+
 def _cmd_visualize(args: argparse.Namespace) -> int:
     import xarray as xr
     from .vis import create_interactive_map, create_animation
@@ -504,12 +619,34 @@ def _cmd_pipeline(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    
+    try:
+        from .utils import get_default_cache_dir, load_env_file, prompt_for_credentials
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from weathergraph.utils import get_default_cache_dir, load_env_file, prompt_for_credentials
+
+    # Determine work_dir to load .env
+    work_dir = Path(args.work_dir) if hasattr(args, 'work_dir') and args.work_dir else get_default_cache_dir()
+    load_env_file(work_dir / ".env")
+
     try:
         return int(args.func(args) or 0)
     except Exception as exc:
+        err_msg = str(exc).lower()
+        auth_keywords = ["credentials", "accessdenied", "unauthorized", "missing/incomplete configuration", "forbidden", "access denied", "auth"]
+        if any(keyword in err_msg for keyword in auth_keywords):
+            if prompt_for_credentials(work_dir):
+                print("Retrying command with new credentials...")
+                try:
+                    return int(args.func(args) or 0)
+                except Exception as retry_exc:
+                    print(f"weathergraph: error on retry: {retry_exc}", file=sys.stderr)
+                    return 1
+        
         print(f"weathergraph: error: {exc}", file=sys.stderr)
         return 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

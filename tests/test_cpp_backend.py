@@ -154,8 +154,8 @@ def test_robustness_nan_inf(mock_engine):
     
     output_data = mock_engine.predict(input_data)
     
-    assert np.isnan(output_data[0, 0, 0])
-    assert np.isinf(output_data[0, 1, 0])
+    assert output_data[0, 0, 0] == 0.0
+    assert output_data[0, 1, 0] == 0.0
 
 def test_model_prepare_input_is_contiguous_and_forwards_threads(monkeypatch):
     """Verifies the Python wrapper prepares contiguous float32 input and forwards thread configuration."""
@@ -926,3 +926,94 @@ def test_model_rejects_latent_output_artifacts(monkeypatch):
 
         with pytest.raises(ValueError, match="autoregressive ONNX artifact"):
             WeatherGraphModel("latent.onnx", weights_dir=tmpdir)
+
+def test_engine_supports_constraints_model():
+    """Verifies the engine loads an optional constraints model."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model_path = os.path.join(tmpdir, "dummy_model.onnx")
+        create_dummy_onnx(model_path)
+        constraints_path = os.path.join(tmpdir, "dummy_constraints.onnx")
+        create_dummy_onnx(constraints_path)
+        
+        # Test constructor accepts constraints_model_path
+        engine = weathergraph_backend.WeatherGraphEngine(
+            model_path,
+            constraints_model_path=constraints_path
+        )
+        
+        input_data = np.random.randn(1, 71042, 78).astype(np.float32)
+        output_data = engine.predict(input_data)
+        assert output_data.shape == input_data.shape
+
+def test_model_tiled_inference_with_halo_exchange(monkeypatch):
+    """Verifies tiled inference supports output weights and accumulates overlapping margins correctly."""
+    import weathergraph.model as model_module
+
+    class TileEngine:
+        def __init__(self, model_path, **kwargs):
+            self.model_path = model_path
+        def output_shape(self): return (1, 2, 78)
+        def predict(self, input_data):
+            # Output 2s to test accumulation
+            return np.ones((1, 2, 78), dtype=np.float32) * 2.0
+            
+    monkeypatch.setattr(
+        model_module,
+        "weathergraph_backend",
+        types.SimpleNamespace(WeatherGraphEngine=TileEngine),
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        np.save(os.path.join(tmpdir, "means.npy"), np.zeros(78, dtype=np.float32))
+        np.save(os.path.join(tmpdir, "stds.npy"), np.ones(78, dtype=np.float32))
+
+        bundle_dir = os.path.join(tmpdir, "tile_bundle")
+        os.makedirs(bundle_dir, exist_ok=True)
+        # Tile 0: nodes 0, 1 (overlapping on 1)
+        np.save(os.path.join(bundle_dir, "tile_0_input.npy"), np.array([0, 1], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_0_output.npy"), np.array([0, 1], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_0_weights.npy"), np.array([1.0, 0.5], dtype=np.float32))
+        
+        # Tile 1: nodes 1, 2 (overlapping on 1)
+        np.save(os.path.join(bundle_dir, "tile_1_input.npy"), np.array([1, 2], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_1_output.npy"), np.array([1, 2], dtype=np.int64))
+        np.save(os.path.join(bundle_dir, "tile_1_weights.npy"), np.array([0.5, 1.0], dtype=np.float32))
+        
+        with open(os.path.join(bundle_dir, "manifest.json"), "w", encoding="utf-8") as handle:
+            json.dump({
+                "global_input_shape": [1, 3, 78],
+                "global_output_shape": [1, 3, 78],
+                "tiles": [
+                    {
+                        "id": "tile_0",
+                        "model_path": "tile_0.onnx",
+                        "input_indices_path": "tile_0_input.npy",
+                        "output_indices_path": "tile_0_output.npy",
+                        "output_weights_path": "tile_0_weights.npy",
+                    },
+                    {
+                        "id": "tile_1",
+                        "model_path": "tile_1.onnx",
+                        "input_indices_path": "tile_1_input.npy",
+                        "output_indices_path": "tile_1_output.npy",
+                        "output_weights_path": "tile_1_weights.npy",
+                    },
+                ],
+            }, handle)
+
+        model = model_module.WeatherGraphModel(
+            "unused_global_model.onnx",
+            weights_dir=tmpdir,
+            spatial_tiling=True,
+            tile_bundle_path=bundle_dir,
+        )
+        input_data = np.zeros((1, 3, 78), dtype=np.float32)
+        output_data = model.engine.predict(input_data)
+
+        # Tile 0 output = 2.0 * [1.0, 0.5] = [2.0, 1.0]
+        # Tile 1 output = 2.0 * [0.5, 1.0] = [1.0, 2.0]
+        # Weight sum: Node 0=1.0, Node 1=1.0, Node 2=1.0
+        # Output sum: Node 0=2.0, Node 1=(1.0+1.0)=2.0, Node 2=2.0
+        # Final output = sum / weight_sum = [2.0, 2.0, 2.0]
+        np.testing.assert_allclose(output_data[0, :, 0], [2.0, 2.0, 2.0])
+

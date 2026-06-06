@@ -22,3 +22,12 @@ target_include_directories(weathergraph_backend PRIVATE
 target_link_libraries(weathergraph_backend PRIVATE
     "${ONNXRUNTIME_DIR}/lib/libonnxruntime.so"
 )
+
+# Optional: Link against mimalloc if available to reduce memory fragmentation
+find_package(mimalloc QUIET)
+if(mimalloc_FOUND)
+    target_link_libraries(weathergraph_backend PRIVATE mimalloc)
+    message(STATUS "Found mimalloc, linking to weathergraph_backend")
+else()
+    message(STATUS "mimalloc not found. Consider using LD_PRELOAD=/usr/lib/libmimalloc.so at runtime.")
+endif()

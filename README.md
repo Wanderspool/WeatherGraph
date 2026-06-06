@@ -30,6 +30,9 @@ Accurate weather forecasting remains one of the most impactful applications of c
 - **Exact Spatial Tiling.** Graph-aware tiling via tile bundles with explicit partition metadata enables high-resolution inference (0.1°) on hardware that cannot fit the full global graph in memory.
 - **Streaming Export.** `iter_forecast()` and `forecast_export()` stream results step-by-step to NetCDF4, Zarr, or NPZ, keeping working-set memory low during long multi-day rollouts.
 - **Multi-Model Architecture.** Schema-driven design supports the reference Keisler 2022 model, GraphCast derivatives, and other GNN architectures via standard ONNX.
+- **Data Sanitization & Hard Constraints.** Real-time NaN/Inf sanitization protects graph integrity, and a secondary zero-copy ONNX pipeline allows applying explicit physical constraints (e.g., non-negative humidity).
+- **Halo Exchange for Tiled Inference.** Smooth edge artifacts during high-resolution tiled inference using weighted spatial aggregation (Halo Exchange).
+- **Probabilistic Core (Ensembles).** Built-in O(1)-memory ensemble inference. Run dozens of parallel scenarios with per-channel noise, calculating variance and threshold probabilities on the fly in C++ without exploding RAM requirements.
 
 ---
 
@@ -138,6 +141,25 @@ model = WeatherGraphModel(
 )
 ```
 
+### Ensemble Inference (Probabilistic Core)
+
+```python
+stats = model.predict_ensemble(
+    initial_ds=ds,
+    steps=40,
+    members=50,
+    perturbation_scale={"t": 0.5, "u": 0.3, "v": 0.3},
+    thresholds={"frost": "t@850 < 273.15"},
+    aggregate_steps=[9, 19, 29, 39], # Only return output for these steps to save memory
+    seed=42,
+)
+
+# Returns O(1)-memory aggregated statistics
+stats.mean                          # xr.Dataset
+stats.std_dev                       # xr.Dataset
+stats.probabilities["frost"]        # xr.DataArray: P(T < 273.15)
+```
+
 ### High-Resolution Tiled Inference (0.1°)
 
 ```python
@@ -163,7 +185,7 @@ weathergraph inspect \
     --model-path models/weather_gnn.onnx \
     --weights-dir data
 
-# Run a forecast
+# Run a deterministic forecast
 weathergraph forecast \
     --model-path models/weather_gnn.onnx \
     --weights-dir data \
@@ -172,6 +194,19 @@ weathergraph forecast \
     --steps 40 \
     --output-format zarr \
     --output-path forecast_output
+
+# Run an ensemble forecast
+weathergraph ensemble \
+    --model-path models/weather_gnn.onnx \
+    --weights-dir data \
+    --data-source era5_netcdf \
+    --input-path initial_state.nc \
+    --steps 40 \
+    --members 50 \
+    --perturbation-scale '{"t": 0.5, "q": 0.001}' \
+    --threshold "frost=t@850<273.15" \
+    --output-format netcdf4 \
+    --output-path ensemble_output
 
 # Visualize results
 weathergraph visualize \
@@ -342,6 +377,12 @@ pytest tests/
 - MetPy and xCDAT integration utilities with graceful fallback
 - Derived atmospheric diagnostics (wind speed, geopotential height)
 - Cloud-native Zarr store adapter (GCS, S3, Azure)
+- **(NEW)** Hard Constraints via secondary zero-copy ONNX graphs
+- **(NEW)** Real-time Data Sanitization neutralizing NaN/Inf corruption
+- **(NEW)** Safe C++ exception translation to Python to prevent SIGSEGV crashes
+- **(NEW)** `mimalloc` support for mitigating memory fragmentation
+- **(NEW)** Halo Exchange for artifact-free spatial tiled inference
+- **(NEW)** Probabilistic Core for O(1)-memory ensemble inference and variance calculation
 
 ### In Progress
 
