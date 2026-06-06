@@ -39,6 +39,7 @@ stages:
   - convert
   - build
   - test
+  - deploy
 
 # ------------------------------------------------------------------------------
 # 1. SETUP — download & cache ONNX Runtime shared libraries
@@ -156,3 +157,23 @@ test:suite:
     - if: '$CI_PIPELINE_SOURCE == "push"'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# ------------------------------------------------------------------------------
+# 6. PAGES — generate and publish MkDocs documentation
+# ------------------------------------------------------------------------------
+pages:
+  stage: deploy
+  script:
+    - pip install mkdocs-material "mkdocstrings[python]" pymdown-extensions --quiet
+    - pip install -e . --quiet
+    - mkdir -p public
+    # Copy existing landing page to public
+    - cp -r docs/* public/
+    # Build MkDocs into the guide subdirectory
+    - mkdocs build -d public/guide
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+

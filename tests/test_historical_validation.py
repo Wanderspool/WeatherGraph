@@ -33,8 +33,8 @@ def real_environment():
     if not os.path.exists(model_path):
         pytest.skip(f"Real ONNX model missing at {model_path}. Must be exported on an AVX-capable machine.")
         
-    if not os.path.exists(data_dir):
-        pytest.skip(f"ERA5 data directory missing at {data_dir}. Real NetCDF files required for hindcast validation.")
+    if not os.path.exists(data_dir) or not any(f.endswith('.nc') for f in os.listdir(data_dir)):
+        pytest.skip(f"ERA5 data directory missing or empty at {data_dir}. Real NetCDF files required for hindcast validation.")
 
     return model_path, weights_dir, data_dir
 

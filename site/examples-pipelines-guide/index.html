@@ -1,0 +1,3341 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Neural Weather Prediction Engine">
+      
+      
+      
+      
+        <link rel="prev" href="../ops/ci-cd/">
+      
+      
+        <link rel="next" href="../dev/building/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Pipelines & Examples - WeatherGraph</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#weathergraph-examples-and-pipelines-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="WeatherGraph" class="md-header__button md-logo" aria-label="WeatherGraph" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            WeatherGraph
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Pipelines & Examples
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Wanderspool/WeatherGraph" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Wanderspool/WeatherGraph
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+  Introduction & Setup
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorials/first-forecast/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guide/engine-architecture/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../advanced/hardware-tuning/" class="md-tabs__link">
+          
+  
+  
+  Advanced Operations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../ops/ansible/" class="md-tabs__link">
+          
+  
+  
+  Infrastructure & MLOps
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../dev/building/" class="md-tabs__link">
+          
+  
+  
+  Developer & Contributor Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/model/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="WeatherGraph" class="md-nav__button md-logo" aria-label="WeatherGraph" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    WeatherGraph
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Wanderspool/WeatherGraph" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Wanderspool/WeatherGraph
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction & Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Introduction & Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Welcome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation & Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/quickstart-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart (CLI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/quickstart-python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart (Python API)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/first-forecast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your First Forecast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with Different Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/visualization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizing Predictions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/exporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting to NetCDF/Zarr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/engine-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Engine Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Ingestion & Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/inference-modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/exporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats & Exporting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/cli-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference & Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/climate-ecosystem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Climate Ecosystem Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/hardware-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Tuning & Memory Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/execution-providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Execution Providers (GPUs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/spatial-tiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Tiling & Large Grids
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/probabilistic-ensembles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Probabilistic Ensembles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/custom-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hard Constraints & Custom Graphs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/halo-exchange/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Halo Exchange & Stitching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastructure & MLOps
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastructure & MLOps
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/ansible/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote Linux Hosts (Ansible)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/terraform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud Provisioning (Terraform)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/cloud-batch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managed Batch Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/ci-cd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI/CD Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines & Examples
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines & Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-what-pipeline-means-in-this-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First: What "Pipeline" Means in This Repository
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shared-concepts-used-by-almost-all-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Shared Concepts Used by Almost All Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Shared Concepts Used by Almost All Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime knobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bundle-preparation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bundle preparation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#important-interpretation-of-the-low-memory-and-tiling-flags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Important interpretation of the low-memory and tiling flags
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-example-should-you-start-with" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which Example Should You Start With?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-supported-cli-weathergraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Supported CLI: weathergraph
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Supported CLI: weathergraph">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-it-provides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it provides
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical commands
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-local-script-examplessimulate_meteorologistpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Local Script: examples/simulate_meteorologist.py
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Local Script: examples/simulate_meteorologist.py">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-you-need-to-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you need to provide
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#simple-mental-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simple mental model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-starting-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical starting command
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-mistakes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common mistakes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-interactive-notebook-examplesplaybooksjupiter_notebookipynb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Interactive Notebook: examples/playbooks/jupiter_notebook.ipynb
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Interactive Notebook: examples/playbooks/jupiter_notebook.ipynb">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-think-about-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to think about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-usage-advice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical usage advice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-it-is-good-at" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it is good at
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-it-is-not-good-at" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it is not good at
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-ci-template-examplesplaybooksgithub_actionsyml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. CI Template: examples/playbooks/github_actions.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. CI Template: examples/playbooks/github_actions.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#four-modes-shown-in-the-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Four modes shown in the template
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#important-distinction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Important distinction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-adopt-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to adopt it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-this-example-matters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why this example matters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-remote-host-automation-examplesplaybooksansiblesiteyml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Remote Host Automation: examples/playbooks/ansible/site.yml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Remote Host Automation: examples/playbooks/ansible/site.yml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-think-about-it_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to think about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-you-edit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you edit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#good-first-use-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Good first use case
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-provision-and-run-infrastructure-examplesplaybooksterraform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Provision-and-Run Infrastructure: examples/playbooks/terraform/
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Provision-and-Run Infrastructure: examples/playbooks/terraform/">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-think-about-it_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to think about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-internally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens internally
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#good-first-use-case_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Good first use case
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-managed-gcp-batch-job-examplesplaybooksgcpbatch-jobyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Managed GCP Batch Job: examples/playbooks/gcp/batch-job.yaml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Managed GCP Batch Job: examples/playbooks/gcp/batch-job.yaml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-think-about-it_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to think about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-usage-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical usage pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-it-is-different-from-terraform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why it is different from Terraform
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-managed-aws-batch-stack-examplesplaybooksawscloudformationyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Managed AWS Batch Stack: examples/playbooks/aws/cloudformation.yaml
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Managed AWS Batch Stack: examples/playbooks/aws/cloudformation.yaml">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-this-example-is-for_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this example is for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use-it_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-think-about-it_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to think about it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#practical-difference-from-terraform" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical difference from Terraform
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-examples-relate-to-one-another" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Examples Relate to One Another
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How the Examples Relate to One Another">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#axis-1-where-the-run-happens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Axis 1. Where the run happens
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#axis-2-who-owns-the-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Axis 2. Who owns the environment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#axis-3-what-the-goal-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Axis 3. What the goal is
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-simple-decision-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A Simple Decision Guide
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-beginner-mistakes-across-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Beginner Mistakes Across Pipelines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recommended-learning-path-for-a-new-team-member" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended Learning Path for a New Team Member
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer & Contributor Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer & Contributor Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/building/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building from Source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/model-conversion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Conversion & Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/tile-bundles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generating Tile Bundles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing & Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/data_sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.data_sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/accessor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.accessor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/vis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.vis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tile_bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.tile_bundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/cf_meta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.cf_meta
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/cpp-backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Backend API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="weathergraph-examples-and-pipelines-guide">WeatherGraph Examples and Pipelines Guide</h1>
+<h2 id="purpose">Purpose</h2>
+<p>This document explains the examples in <code>examples/</code> in plain language for readers who have not worked with infrastructure or automation pipelines before. The goal is not just to show commands, but to explain what each example is for, what problem it solves, and how to choose the right one.</p>
+<h2 id="first-what-pipeline-means-in-this-repository">First: What "Pipeline" Means in This Repository</h2>
+<p>In WeatherGraph, a pipeline is an automated wrapper around the same core runtime.</p>
+<p>No matter which example you choose, most of them perform some variation of the same steps:</p>
+<ol>
+<li>prepare a machine or environment</li>
+<li>build the C++ backend</li>
+<li>obtain an ONNX model</li>
+<li>obtain an initial weather state</li>
+<li>run inference or autoregressive forecast</li>
+<li>export the results</li>
+<li>optionally upload or store the outputs elsewhere</li>
+</ol>
+<p>The examples differ in who does that work and where it runs.</p>
+<ul>
+<li>Some examples are local and manual.</li>
+<li>Some are CI-oriented.</li>
+<li>Some are meant for remote servers.</li>
+<li>Some create cloud infrastructure for you.</li>
+<li>Some submit jobs into managed batch systems.</li>
+</ul>
+<h2 id="the-shared-concepts-used-by-almost-all-examples">The Shared Concepts Used by Almost All Examples</h2>
+<p>Before looking at individual files, it helps to understand the shared parameters.</p>
+<h3 id="model-source">Model source</h3>
+<p>Most automation examples support one of two model acquisition modes.</p>
+<ul>
+<li><code>url</code>: download a ready-made <code>.onnx</code> file.</li>
+<li><code>script</code>: run a conversion script that produces an <code>.onnx</code> file.</li>
+</ul>
+<p>Use <code>url</code> when you already have a compatible ONNX artifact.</p>
+<p>Use <code>script</code> when your actual model exists in another framework and must be converted during the pipeline.</p>
+<h3 id="data-source">Data source</h3>
+<p>Most examples use one of the adapter names from <code>weathergraph.data_sources</code>.</p>
+<p>Common choices:</p>
+<ul>
+<li><code>era5_netcdf</code>: local or mounted NetCDF file.</li>
+<li><code>ecmwf_open</code>: download current ECMWF public forecast data.</li>
+<li><code>cds_era5</code>: download ERA5 reanalysis through CDS.</li>
+<li><code>gfs</code>: use NOAA GFS.</li>
+<li><code>open_meteo</code>: single-point remote forecast.</li>
+<li><code>custom</code>: custom file plus explicit variable mapping.</li>
+</ul>
+<h3 id="output-format">Output format</h3>
+<p>Common output formats are:</p>
+<ul>
+<li><code>netcdf4</code>: structured scientific files, streamed step-by-step.</li>
+<li><code>zarr</code>: chunk-friendly directory output, also streamed.</li>
+<li><code>npz</code>: compressed raw arrays, but not append-friendly.</li>
+</ul>
+<h3 id="runtime-knobs">Runtime knobs</h3>
+<p>Several examples expose the same runtime options because they all call the same <code>WeatherGraphModel</code> constructor.</p>
+<ul>
+<li><code>intra_op_threads</code></li>
+<li><code>execution_provider</code></li>
+<li><code>execution_device_id</code></li>
+<li><code>execution_memory_limit</code></li>
+<li><code>execution_provider_options</code></li>
+<li><code>disable_cpu_ep_fallback</code></li>
+<li><code>disable_cpu_mem_arena</code></li>
+<li><code>disable_mem_pattern</code></li>
+<li><code>spatial_tiling</code></li>
+<li><code>tile_bundle_path</code></li>
+<li><code>reference_grid_shape</code></li>
+<li><code>reference_grid_resolution_degrees</code></li>
+<li><code>tile_state_backend</code></li>
+<li><code>tile_state_dir</code></li>
+</ul>
+<h3 id="bundle-preparation">Bundle preparation</h3>
+<p>If you already have per-tile ONNX artifacts, the supported way to package a usable bundle is:</p>
+<div class="highlight"><pre><span></span><code>weathergraph<span class="w"> </span>build-tile-bundle<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output-dir<span class="w"> </span>tile_bundle<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--senders-path<span class="w"> </span>data/graph_data/senders_receivers_encoder/senders.npy<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--receivers-path<span class="w"> </span>data/graph_data/senders_receivers_encoder/receivers.npy<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--tile-model-dir<span class="w"> </span>tile_models<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--reference-grid-shape<span class="w"> </span>1801x3600<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--tile-grid-shape<span class="w"> </span>150x150
+</code></pre></div>
+<p>This command generates <code>manifest.json</code> plus the <code>*_input.npy</code> and <code>*_output.npy</code> index arrays expected by <code>WeatherGraphModel</code>.</p>
+<h3 id="important-interpretation-of-the-low-memory-and-tiling-flags">Important interpretation of the low-memory and tiling flags</h3>
+<ul>
+<li><code>execution_provider</code> defaults to <code>cpu</code>; accelerator values such as <code>cuda</code>, <code>tensorrt</code>, <code>rocm</code>, and <code>openvino</code> only make sense on hosts that have the matching ONNX Runtime provider bundle and vendor runtime.</li>
+<li><code>disable_cpu_ep_fallback</code> only makes sense when <code>execution_provider</code> is not <code>cpu</code>.</li>
+<li><code>disable_cpu_mem_arena</code> and <code>disable_mem_pattern</code> are optional and off by default.</li>
+<li><code>spatial_tiling</code> is also optional and requires a valid tile bundle.</li>
+<li><code>tile_state_backend="memmap"</code> is useful when tiled high-resolution runs are limited by RAM rather than disk bandwidth.</li>
+<li>These flags are runtime controls, not separate product modes.</li>
+</ul>
+<h2 id="which-example-should-you-start-with">Which Example Should You Start With?</h2>
+<p>If you are new to the project, use this order.</p>
+<ol>
+<li><code>weathergraph</code> CLI if you want the supported operational entrypoint with inspect and forecast modes.</li>
+<li><code>examples/simulate_meteorologist.py</code> if you want to study a richer scenario runner around the same runtime.</li>
+<li><code>examples/playbooks/jupiter_notebook.ipynb</code> if you want an interactive walk-through.</li>
+<li><code>examples/playbooks/github_actions.yml</code> if you want automated validation in CI.</li>
+<li><code>examples/playbooks/ansible/site.yml</code> if you already manage your own Linux hosts.</li>
+<li><code>examples/playbooks/terraform/</code> if you want infrastructure provisioning plus execution.</li>
+<li><code>examples/playbooks/gcp/batch-job.yaml</code> or <code>examples/playbooks/aws/cloudformation.yaml</code> if you want managed cloud batch execution.</li>
+</ol>
+<h2 id="1-supported-cli-weathergraph">1. Supported CLI: <code>weathergraph</code></h2>
+<h3 id="what-this-example-is-for">What this example is for</h3>
+<p>This is the supported front door for researchers who want to use WeatherGraph without writing Python glue code.</p>
+<h3 id="what-it-provides">What it provides</h3>
+<ul>
+<li><code>weathergraph list-sources</code> to discover adapters</li>
+<li><code>weathergraph inspect</code> to validate runtime/provider/grid settings and print memory sizing</li>
+<li><code>weathergraph forecast</code> to run one-step inference, iterative rollout, or export to disk</li>
+</ul>
+<h3 id="typical-commands">Typical commands</h3>
+<div class="highlight"><pre><span></span><code>weathergraph<span class="w"> </span>inspect<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--model-path<span class="w"> </span>models/weather_gnn.onnx<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--weights-dir<span class="w"> </span>data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--execution-provider<span class="w"> </span>cuda<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--execution-device-id<span class="w"> </span><span class="m">0</span>
+
+weathergraph<span class="w"> </span>forecast<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--model-path<span class="w"> </span>models/weather_gnn.onnx<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--weights-dir<span class="w"> </span>data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data-source<span class="w"> </span>era5_netcdf<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--input-path<span class="w"> </span>data/era5_archives/init_state.nc<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--steps<span class="w"> </span><span class="m">40</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output-format<span class="w"> </span>zarr<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output-path<span class="w"> </span>forecast_out
+</code></pre></div>
+<p>From a source checkout without installation, use <code>python -m weathergraph.cli</code>.</p>
+<h2 id="2-local-script-examplessimulate_meteorologistpy">2. Local Script: <code>examples/simulate_meteorologist.py</code></h2>
+<h3 id="what-this-example-is-for_1">What this example is for</h3>
+<p>This is the most direct operational example. It is a local or self-managed runner that:</p>
+<ul>
+<li>verifies the model and data environment</li>
+<li>selects a data source</li>
+<li>constructs <code>WeatherGraphModel</code></li>
+<li>runs a set of predefined simulation scenarios</li>
+</ul>
+<h3 id="when-to-use-it">When to use it</h3>
+<p>Use this example when you want to:</p>
+<ul>
+<li>confirm that your local installation works</li>
+<li>test a real model against real meteorological input</li>
+<li>compare different data sources without writing new code</li>
+<li>experiment with low-memory, GPU-provider, or tiling flags in the simplest possible setup</li>
+</ul>
+<h3 id="what-you-need-to-provide">What you need to provide</h3>
+<p>At minimum:</p>
+<ul>
+<li>an ONNX model path</li>
+<li>a weights directory containing <code>means.npy</code> and <code>stds.npy</code></li>
+<li>a valid data source configuration</li>
+</ul>
+<p>Environment variables used by the script include:</p>
+<ul>
+<li><code>WEATHERGRAPH_ONNX_MODEL</code></li>
+<li><code>WEATHERGRAPH_WEIGHTS_DIR</code></li>
+<li><code>ERA5_DATA_DIR</code></li>
+<li><code>WEATHERGRAPH_INTRA_OP_THREADS</code></li>
+<li><code>WEATHERGRAPH_EXECUTION_PROVIDER</code></li>
+<li><code>WEATHERGRAPH_EXECUTION_DEVICE_ID</code></li>
+<li><code>WEATHERGRAPH_EXECUTION_MEMORY_LIMIT</code></li>
+<li><code>WEATHERGRAPH_EXECUTION_PROVIDER_OPTIONS</code></li>
+<li><code>WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK</code></li>
+<li><code>WEATHERGRAPH_DISABLE_CPU_MEM_ARENA</code></li>
+<li><code>WEATHERGRAPH_DISABLE_MEM_PATTERN</code></li>
+<li><code>WEATHERGRAPH_SPATIAL_TILING</code></li>
+<li><code>WEATHERGRAPH_TILE_BUNDLE_PATH</code></li>
+<li><code>WEATHERGRAPH_REFERENCE_GRID_SHAPE</code></li>
+<li><code>WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES</code></li>
+<li><code>WEATHERGRAPH_TILE_STATE_BACKEND</code></li>
+<li><code>WEATHERGRAPH_TILE_STATE_DIR</code></li>
+<li><code>DATA_SOURCE</code></li>
+<li>source-specific variables such as <code>CDS_DATE</code>, <code>GFS_DATE</code>, <code>OPEN_METEO_LAT</code>, <code>OPEN_METEO_LON</code>, or <code>DATA_SOURCE_SCHEMA</code></li>
+</ul>
+<h3 id="simple-mental-model">Simple mental model</h3>
+<p>Think of this file as a reusable command-line harness around the Python API. It is the easiest place to learn how runtime flags and data-source adapters behave.</p>
+<h3 id="typical-starting-command">Typical starting command</h3>
+<p>If you already have local ERA5 input files:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">ERA5_DATA_DIR</span><span class="o">=</span>data/era5_archives<span class="w"> </span>python<span class="w"> </span>examples/simulate_meteorologist.py
+</code></pre></div>
+<p>If you want to test the low-memory path:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">WEATHERGRAPH_DISABLE_CPU_MEM_ARENA</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+<span class="nv">WEATHERGRAPH_DISABLE_MEM_PATTERN</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+python<span class="w"> </span>examples/simulate_meteorologist.py
+</code></pre></div>
+<p>If you want to test the CUDA execution provider:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">WEATHERGRAPH_EXECUTION_PROVIDER</span><span class="o">=</span>cuda<span class="w"> </span><span class="se">\</span>
+<span class="nv">WEATHERGRAPH_EXECUTION_DEVICE_ID</span><span class="o">=</span><span class="m">0</span><span class="w"> </span><span class="se">\</span>
+<span class="nv">WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+python<span class="w"> </span>examples/simulate_meteorologist.py
+</code></pre></div>
+<p>If you want to test exact tiling prepared for a higher-resolution export path:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">WEATHERGRAPH_SPATIAL_TILING</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span><span class="se">\</span>
+<span class="nv">WEATHERGRAPH_TILE_BUNDLE_PATH</span><span class="o">=</span>tile_bundle/manifest.json<span class="w"> </span><span class="se">\</span>
+<span class="nv">WEATHERGRAPH_TILE_STATE_BACKEND</span><span class="o">=</span>memmap<span class="w"> </span><span class="se">\</span>
+<span class="nv">WEATHERGRAPH_REFERENCE_GRID_RESOLUTION_DEGREES</span><span class="o">=</span><span class="m">0</span>.1<span class="w"> </span><span class="se">\</span>
+python<span class="w"> </span>examples/simulate_meteorologist.py
+</code></pre></div>
+<h3 id="common-mistakes">Common mistakes</h3>
+<ul>
+<li>requesting <code>WEATHERGRAPH_EXECUTION_PROVIDER=cuda</code> without shipping the ONNX Runtime CUDA provider <code>.so</code> files or compatible vendor runtime libraries</li>
+<li>setting <code>WEATHERGRAPH_DISABLE_CPU_EP_FALLBACK=true</code> while still using the default CPU execution provider</li>
+<li>enabling <code>WEATHERGRAPH_SPATIAL_TILING</code> without providing a tile bundle</li>
+<li>asking for a high-resolution reference grid without confirming that the model or tile bundle exposes enough nodes for that export shape</li>
+<li>assuming the script can generate the ONNX model for you on a machine that cannot produce it</li>
+<li>using a data source that requires extra Python packages without installing them first</li>
+</ul>
+<h2 id="2-interactive-notebook-examplesplaybooksjupiter_notebookipynb">2. Interactive Notebook: <code>examples/playbooks/jupiter_notebook.ipynb</code></h2>
+<h3 id="what-this-example-is-for_2">What this example is for</h3>
+<p>This notebook is the interactive learning path. It is useful when you want to inspect the workflow cell by cell instead of running a full automation script.</p>
+<h3 id="when-to-use-it_1">When to use it</h3>
+<p>Use the notebook when you want to:</p>
+<ul>
+<li>explore the API interactively</li>
+<li>modify parameters step-by-step</li>
+<li>understand the sequence of loading data, creating a model, predicting, and exporting</li>
+<li>demonstrate the workflow to another person</li>
+</ul>
+<h3 id="how-to-think-about-it">How to think about it</h3>
+<p>The notebook is not a separate runtime implementation. It is a guided front-end for the same Python package and the same model constructor used everywhere else.</p>
+<h3 id="practical-usage-advice">Practical usage advice</h3>
+<ul>
+<li>open the notebook in VS Code or Jupyter</li>
+<li>run cells from top to bottom the first time</li>
+<li>do not skip the setup cells</li>
+<li>treat it as an exploratory workflow, not a deployment mechanism</li>
+</ul>
+<h3 id="what-it-is-good-at">What it is good at</h3>
+<ul>
+<li>learning</li>
+<li>experimentation</li>
+<li>manual inspection of outputs</li>
+</ul>
+<h3 id="what-it-is-not-good-at">What it is not good at</h3>
+<ul>
+<li>unattended production jobs</li>
+<li>repeatable infrastructure provisioning</li>
+<li>long-lived scheduled automation by itself</li>
+</ul>
+<h2 id="3-ci-template-examplesplaybooksgithub_actionsyml">3. CI Template: <code>examples/playbooks/github_actions.yml</code></h2>
+<h3 id="what-this-example-is-for_3">What this example is for</h3>
+<p>This file is a template that a user copies into their own repository to validate a model automatically with GitHub Actions.</p>
+<p>It does not define the reusable engine pipeline itself. Instead, it calls the reusable workflow in <code>.github/workflows/model-pipeline.yml</code>.</p>
+<h3 id="when-to-use-it_2">When to use it</h3>
+<p>Use this example when you want CI to answer questions like:</p>
+<ul>
+<li>does my ONNX artifact still load?</li>
+<li>does my conversion script still produce a valid graph?</li>
+<li>does WeatherGraph still run smoke validation against my model?</li>
+</ul>
+<h3 id="four-modes-shown-in-the-template">Four modes shown in the template</h3>
+<p>The file demonstrates four common ways to validate a model:</p>
+<ol>
+<li>use a pre-built ONNX URL</li>
+<li>convert from PyTorch</li>
+<li>build the prototype latent-output graph for experiments</li>
+<li>convert from TensorFlow or Keras</li>
+</ol>
+<h3 id="important-distinction">Important distinction</h3>
+<p>The prototype graph path is not the normal production path. It is specifically marked as a latent-output experiment and is not compatible with standard autoregressive <code>WeatherGraphModel</code> usage unless the prototype path is explicitly allowed.</p>
+<h3 id="how-to-adopt-it">How to adopt it</h3>
+<ol>
+<li>copy the template into <code>.github/workflows/</code> in your own repository</li>
+<li>uncomment the job that matches your model source</li>
+<li>fill in the model URL or conversion script parameters</li>
+<li>optionally add low-memory runtime flags for smoke validation</li>
+</ol>
+<h3 id="why-this-example-matters">Why this example matters</h3>
+<p>It teaches that WeatherGraph can be consumed as a reusable validation engine by downstream model repositories, not only as a standalone runtime repository.</p>
+<h2 id="4-remote-host-automation-examplesplaybooksansiblesiteyml">4. Remote Host Automation: <code>examples/playbooks/ansible/site.yml</code></h2>
+<h3 id="what-this-example-is-for_4">What this example is for</h3>
+<p>This playbook automates the full pipeline on a Linux machine that you already control.</p>
+<p>It performs:</p>
+<ul>
+<li>package installation</li>
+<li>repository checkout</li>
+<li>Python virtual environment creation</li>
+<li>ONNX Runtime acquisition</li>
+<li>C++ backend build</li>
+<li>model download or conversion</li>
+<li>forecast execution</li>
+</ul>
+<h3 id="when-to-use-it_3">When to use it</h3>
+<p>Use Ansible when:</p>
+<ul>
+<li>you already have one or more Linux hosts</li>
+<li>you want repeatable setup without manually logging into each machine</li>
+<li>you prefer infrastructure described as configuration rather than ad hoc shell commands</li>
+</ul>
+<h3 id="how-to-think-about-it_1">How to think about it</h3>
+<p>Ansible is for machine configuration plus job execution. It is a good fit when the machine is long-lived or semi-permanent.</p>
+<h3 id="what-you-edit">What you edit</h3>
+<ul>
+<li>inventory file with host addresses</li>
+<li>variables such as <code>model_url</code>, <code>input_data</code>, <code>steps</code>, <code>output_fmt</code></li>
+<li>optional <code>data_source</code> and <code>data_source_params</code></li>
+</ul>
+<h3 id="good-first-use-case">Good first use case</h3>
+<p>You have one forecast server and want to be able to rebuild and rerun the same pipeline reliably.</p>
+<h2 id="5-provision-and-run-infrastructure-examplesplaybooksterraform">5. Provision-and-Run Infrastructure: <code>examples/playbooks/terraform/</code></h2>
+<h3 id="what-this-example-is-for_5">What this example is for</h3>
+<p>The Terraform example provisions a cloud instance and renders a cloud-init bootstrap script that performs the actual WeatherGraph run.</p>
+<p>Relevant files:</p>
+<ul>
+<li><code>examples/playbooks/terraform/variables.tf</code>: user inputs</li>
+<li><code>examples/playbooks/terraform/main.tf</code>: resource definitions</li>
+<li><code>examples/playbooks/terraform/cloud-init.sh.tpl</code>: machine bootstrap script</li>
+</ul>
+<h3 id="when-to-use-it_4">When to use it</h3>
+<p>Use Terraform when:</p>
+<ul>
+<li>you want infrastructure creation recorded as code</li>
+<li>you want a one-shot machine created for the forecast run</li>
+<li>you want the same configuration to work for GCP or AWS with variable changes</li>
+</ul>
+<h3 id="how-to-think-about-it_2">How to think about it</h3>
+<p>Terraform here is not the forecast runner by itself. It is the infrastructure orchestrator. The real forecast work happens in the rendered cloud-init script after the machine boots.</p>
+<h3 id="what-happens-internally">What happens internally</h3>
+<ol>
+<li>Terraform creates a VM.</li>
+<li>The VM runs the rendered cloud-init script.</li>
+<li>The script clones the repository, builds WeatherGraph, downloads or converts the model, runs the forecast, and optionally uploads the output.</li>
+</ol>
+<h3 id="good-first-use-case_1">Good first use case</h3>
+<p>You want disposable infrastructure that is created for the job and can disappear after the job completes.</p>
+<h2 id="6-managed-gcp-batch-job-examplesplaybooksgcpbatch-jobyaml">6. Managed GCP Batch Job: <code>examples/playbooks/gcp/batch-job.yaml</code></h2>
+<h3 id="what-this-example-is-for_6">What this example is for</h3>
+<p>This file submits the workload to Google Cloud Batch. Google manages the job execution environment, and you do not manage a persistent VM directly.</p>
+<h3 id="when-to-use-it_5">When to use it</h3>
+<p>Use this when:</p>
+<ul>
+<li>you prefer a managed batch job model</li>
+<li>you want cloud execution without maintaining a long-lived instance</li>
+<li>your output is naturally written to local temporary storage and then copied to <code>gs://</code></li>
+</ul>
+<h3 id="how-to-think-about-it_3">How to think about it</h3>
+<p>This is a self-contained job definition. The machine exists only for the duration of the batch task.</p>
+<h3 id="typical-usage-pattern">Typical usage pattern</h3>
+<ol>
+<li>enable the required GCP services</li>
+<li>submit the job with <code>gcloud batch jobs submit</code></li>
+<li>override environment variables when needed</li>
+<li>inspect logs in Cloud Logging</li>
+</ol>
+<h3 id="why-it-is-different-from-terraform">Why it is different from Terraform</h3>
+<ul>
+<li>Terraform is about provisioning infrastructure resources.</li>
+<li>GCP Batch is about submitting a managed job payload.</li>
+</ul>
+<p>If you do not need persistent infrastructure state, Batch is usually simpler.</p>
+<h2 id="7-managed-aws-batch-stack-examplesplaybooksawscloudformationyaml">7. Managed AWS Batch Stack: <code>examples/playbooks/aws/cloudformation.yaml</code></h2>
+<h3 id="what-this-example-is-for_7">What this example is for</h3>
+<p>This template creates the AWS Batch environment needed to run WeatherGraph in AWS.</p>
+<p>It defines:</p>
+<ul>
+<li>IAM roles</li>
+<li>compute environment</li>
+<li>job queue</li>
+<li>job definition</li>
+</ul>
+<h3 id="when-to-use-it_6">When to use it</h3>
+<p>Use this when:</p>
+<ul>
+<li>you are already in AWS</li>
+<li>you want managed batch execution</li>
+<li>you want the batch environment itself defined declaratively</li>
+</ul>
+<h3 id="how-to-think-about-it_4">How to think about it</h3>
+<p>Unlike the GCP Batch file, this example includes the infrastructure stack definition around the batch environment, not just the job payload.</p>
+<h3 id="typical-workflow">Typical workflow</h3>
+<ol>
+<li>deploy the CloudFormation stack</li>
+<li>wait for the batch environment to exist</li>
+<li>submit jobs with parameter overrides</li>
+<li>store outputs in <code>s3://</code> if desired</li>
+</ol>
+<h3 id="practical-difference-from-terraform">Practical difference from Terraform</h3>
+<ul>
+<li>Terraform provisions a generic compute instance and boots a script on it.</li>
+<li>this CloudFormation template provisions an AWS Batch system and then runs WeatherGraph inside that job environment.</li>
+</ul>
+<h2 id="how-the-examples-relate-to-one-another">How the Examples Relate to One Another</h2>
+<p>All examples are wrappers around the same core runtime.</p>
+<p>They differ across three axes.</p>
+<h3 id="axis-1-where-the-run-happens">Axis 1. Where the run happens</h3>
+<ul>
+<li>local machine</li>
+<li>your own server</li>
+<li>provisioned cloud instance</li>
+<li>managed batch service</li>
+</ul>
+<h3 id="axis-2-who-owns-the-environment">Axis 2. Who owns the environment</h3>
+<ul>
+<li>you manually</li>
+<li>configuration management</li>
+<li>infrastructure-as-code tooling</li>
+<li>cloud batch service</li>
+</ul>
+<h3 id="axis-3-what-the-goal-is">Axis 3. What the goal is</h3>
+<ul>
+<li>learning and debugging</li>
+<li>CI validation</li>
+<li>repeatable server operations</li>
+<li>disposable production execution</li>
+</ul>
+<h2 id="a-simple-decision-guide">A Simple Decision Guide</h2>
+<p>Choose the example based on your actual need.</p>
+<ul>
+<li>If you want to learn the API, start with <code>simulate_meteorologist.py</code>.</li>
+<li>If you want interactive exploration, use the notebook.</li>
+<li>If you want model validation on every change, use the GitHub Actions template.</li>
+<li>If you already manage Linux machines, use Ansible.</li>
+<li>If you want one-shot cloud infrastructure, use Terraform.</li>
+<li>If you want managed cloud jobs, use GCP Batch or AWS Batch.</li>
+</ul>
+<h2 id="common-beginner-mistakes-across-pipelines">Common Beginner Mistakes Across Pipelines</h2>
+<ul>
+<li>treating every example as if it were a different inference engine</li>
+<li>forgetting that most pipelines still need a valid ONNX artifact and valid input data</li>
+<li>enabling exact tiling without a tile bundle</li>
+<li>assuming <code>forecast()</code> and <code>forecast_export()</code> have the same memory behavior</li>
+<li>using remote data-source adapters without their extra dependencies or credentials</li>
+<li>expecting the prototype exporter path to behave like the production autoregressive runtime</li>
+</ul>
+<h2 id="recommended-learning-path-for-a-new-team-member">Recommended Learning Path for a New Team Member</h2>
+<ol>
+<li>Read <code>Docs/feature-guide.md</code> to understand what the runtime can do.</li>
+<li>Read <code>Docs/project-architecture.md</code> to understand how the code is organized.</li>
+<li>Run <code>examples/simulate_meteorologist.py</code> locally with the default ERA5 path.</li>
+<li>Open the notebook and step through the same ideas interactively.</li>
+<li>Only after that, choose one automation surface for CI or deployment.</li>
+</ol>
+<p>That order keeps the core runtime understandable before infrastructure complexity is introduced.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "toc.integrate", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

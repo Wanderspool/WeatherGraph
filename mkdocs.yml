@@ -1,0 +1,87 @@
+site_name: WeatherGraph
+site_description: Neural Weather Prediction Engine
+repo_url: https://github.com/Wanderspool/WeatherGraph
+repo_name: Wanderspool/WeatherGraph
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - toc.integrate
+    - content.code.copy
+  palette:
+    - scheme: slate
+      primary: blue
+      accent: teal
+
+docs_dir: docs_src
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: .
+      check_paths: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+
+nav:
+  - Introduction & Setup:
+      - Welcome: index.md
+      - Feature Guide: feature-guide.md
+      - Installation & Dependencies: intro/install.md
+      - Quickstart (CLI): intro/quickstart-cli.md
+      - Quickstart (Python API): intro/quickstart-python.md
+      - Glossary: intro/glossary.md
+  - Tutorials:
+      - Your First Forecast: tutorials/first-forecast.md
+      - Working with Different Data Sources: tutorials/data-sources.md
+      - Visualizing Predictions: tutorials/visualization.md
+      - Exporting to NetCDF/Zarr: tutorials/exporting.md
+  - User Guide:
+      - The Engine Architecture: guide/engine-architecture.md
+      - Data Ingestion & Adapters: guide/adapters.md
+      - Inference Modes: guide/inference-modes.md
+      - Output Formats & Exporting: guide/exporting.md
+      - CLI Reference & Operations: guide/cli-operations.md
+      - Climate Ecosystem Integration: guide/climate-ecosystem.md
+      - Troubleshooting & FAQ: guide/troubleshooting.md
+  - Advanced Operations:
+      - Hardware Tuning & Memory Limits: advanced/hardware-tuning.md
+      - Execution Providers (GPUs): advanced/execution-providers.md
+      - Spatial Tiling & Large Grids: advanced/spatial-tiling.md
+      - Probabilistic Ensembles: advanced/probabilistic-ensembles.md
+      - Hard Constraints & Custom Graphs: advanced/custom-constraints.md
+      - Halo Exchange & Stitching: advanced/halo-exchange.md
+  - Infrastructure & MLOps:
+      - Remote Linux Hosts (Ansible): ops/ansible.md
+      - Cloud Provisioning (Terraform): ops/terraform.md
+      - Managed Batch Jobs: ops/cloud-batch.md
+      - CI/CD Validation: ops/ci-cd.md
+      - Pipelines & Examples: examples-pipelines-guide.md
+  - Developer & Contributor Guide:
+      - Building from Source: dev/building.md
+      - Model Conversion & Export: dev/model-conversion.md
+      - Generating Tile Bundles: dev/tile-bundles.md
+      - Testing & Validation: dev/testing.md
+      - Project Architecture: project-architecture.md
+  - API Reference:
+      - weathergraph.model: api/model.md
+      - weathergraph.data_sources: api/data_sources.md
+      - weathergraph.accessor: api/accessor.md
+      - weathergraph.integrations: api/integrations.md
+      - weathergraph.vis: api/vis.md
+      - weathergraph.tile_bundle: api/tile_bundle.md
+      - weathergraph.cf_meta: api/cf_meta.md
+      - weathergraph.utils: api/utils.md
+      - C++ Backend API: api/cpp-backend.md

@@ -1,0 +1,2883 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Neural Weather Prediction Engine">
+      
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../intro/install/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Feature Guide - WeatherGraph</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#weathergraph-feature-guide" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="WeatherGraph" class="md-header__button md-logo" aria-label="WeatherGraph" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            WeatherGraph
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Feature Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="teal"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Wanderspool/WeatherGraph" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Wanderspool/WeatherGraph
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+  Introduction & Setup
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorials/first-forecast/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guide/engine-architecture/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../advanced/hardware-tuning/" class="md-tabs__link">
+          
+  
+  
+  Advanced Operations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../ops/ansible/" class="md-tabs__link">
+          
+  
+  
+  Infrastructure & MLOps
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../dev/building/" class="md-tabs__link">
+          
+  
+  
+  Developer & Contributor Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/model/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="WeatherGraph" class="md-nav__button md-logo" aria-label="WeatherGraph" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    WeatherGraph
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Wanderspool/WeatherGraph" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Wanderspool/WeatherGraph
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction & Setup
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Introduction & Setup
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Welcome
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Purpose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-weathergraph-provides-today" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What WeatherGraph Provides Today
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-c-onnx-runtime-backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. C++ ONNX Runtime Backend
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-zero-copy-python-to-c-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Zero-Copy Python to C++ Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-scientific-python-control-plane" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Scientific Python Control Plane
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-strict-atmospheric-input-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Strict Atmospheric Input Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-multiple-data-source-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Multiple Data-Source Adapters
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-forecast-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Forecast Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Forecast Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#predict_one_step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predict_one_step()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forecast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        forecast()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iter_forecast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iter_forecast()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forecast_export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        forecast_export()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#predict_ensemble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predict_ensemble()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-optional-onnx-runtime-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Optional ONNX Runtime Controls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Optional ONNX Runtime Controls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#low-memory-cpu-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Low-memory CPU controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accelerator-execution-provider-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accelerator execution-provider controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-exact-spatial-tiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Exact Spatial Tiling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-climate-ecosystem-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Climate Ecosystem Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Climate Ecosystem Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cf-111-convention-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CF-1.11 Convention Compliance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xarray-accessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Xarray Accessor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metpy-xcdat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MetPy &amp; xCDAT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-reference-grid-streaming-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Reference-Grid Streaming Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-pipeline-integrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Pipeline Integrations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-validation-and-safety-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Validation and Safety Features
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-deployment-expectations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical Deployment Expectations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Practical Deployment Expectations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#experimental-1-degree-reference-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Experimental 1-degree reference profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recommended-025-degree-workstation-profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended 0.25-degree workstation profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#intentional-non-goals-in-the-current-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intentional Non-Goals in the Current Tree
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-to-code-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature-to-Code Map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-sanitization-hard-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Sanitization &amp; Hard Constraints
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Sanitization &amp; Hard Constraints">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implementing-hard-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing Hard Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#halo-exchange-for-tiled-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Halo Exchange for Tiled Inference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation & Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/quickstart-cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart (CLI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/quickstart-python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart (Python API)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intro/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/first-forecast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your First Forecast
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Working with Different Data Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/visualization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualizing Predictions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/exporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Exporting to NetCDF/Zarr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/engine-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Engine Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/adapters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Ingestion & Adapters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/inference-modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inference Modes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/exporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Output Formats & Exporting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/cli-operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference & Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/climate-ecosystem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Climate Ecosystem Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guide/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/hardware-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Tuning & Memory Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/execution-providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Execution Providers (GPUs)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/spatial-tiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Tiling & Large Grids
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/probabilistic-ensembles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Probabilistic Ensembles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/custom-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hard Constraints & Custom Graphs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/halo-exchange/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Halo Exchange & Stitching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Infrastructure & MLOps
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Infrastructure & MLOps
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/ansible/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Remote Linux Hosts (Ansible)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/terraform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud Provisioning (Terraform)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/cloud-batch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managed Batch Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ops/ci-cd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI/CD Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples-pipelines-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipelines & Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer & Contributor Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer & Contributor Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/building/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building from Source
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/model-conversion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model Conversion & Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/tile-bundles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Generating Tile Bundles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dev/testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing & Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../project-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/data_sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.data_sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/accessor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.accessor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/vis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.vis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tile_bundle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.tile_bundle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/cf_meta/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.cf_meta
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    weathergraph.utils
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/cpp-backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ Backend API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="weathergraph-feature-guide">WeatherGraph Feature Guide</h1>
+<h2 id="purpose">Purpose</h2>
+<p>This document explains the major runtime features that are already implemented in WeatherGraph and the constraints that matter when you use them in practice. It is meant to complement the top-level README by going one step deeper into what each feature does, where it lives in the codebase, and when it should or should not be used.</p>
+<h2 id="what-weathergraph-provides-today">What WeatherGraph Provides Today</h2>
+<p>WeatherGraph is a two-layer weather inference stack:</p>
+<ul>
+<li>A C++ data plane that executes ONNX models through ONNX Runtime.</li>
+<li>A Python control plane that accepts <code>xarray.Dataset</code> inputs, prepares tensors, drives autoregressive rollout, and exports results.</li>
+</ul>
+<p>The current repository state already includes the following implemented capabilities.</p>
+<h2 id="1-c-onnx-runtime-backend">1. C++ ONNX Runtime Backend</h2>
+<p>Main code: <code>src/cpp/main.cpp</code></p>
+<p>What it does:</p>
+<ul>
+<li>Loads an ONNX model with ONNX Runtime.</li>
+<li>Reads the real output tensor shape from model metadata instead of assuming input and output shapes are identical.</li>
+<li>Exposes a Python module named <code>weathergraph_backend</code> with the class <code>WeatherGraphEngine</code>.</li>
+<li>Accepts NumPy-backed input arrays and writes prediction output directly into a Python-owned output buffer.</li>
+</ul>
+<p>Why it matters:</p>
+<ul>
+<li>This is the performance-critical path.</li>
+<li>It keeps Python orchestration separate from low-level inference.</li>
+<li>It makes low-memory tuning possible at the runtime level.</li>
+</ul>
+<h2 id="2-zero-copy-python-to-c-boundary">2. Zero-Copy Python to C++ Boundary</h2>
+<p>Main code: <code>src/cpp/main.cpp</code>, <code>weathergraph/model.py</code></p>
+<p>What it does:</p>
+<ul>
+<li>The Python layer prepares a contiguous <code>float32[1, nodes, 78]</code> tensor.</li>
+<li>The C++ backend wraps the NumPy memory buffer directly with ONNX Runtime tensor objects.</li>
+<li>Output is also written directly into a Python NumPy array.</li>
+</ul>
+<p>Important constraint:</p>
+<ul>
+<li>Input arrays must be C-contiguous.</li>
+<li>The backend rejects strided input rather than risking incorrect reads or crashes.</li>
+</ul>
+<h2 id="3-scientific-python-control-plane">3. Scientific Python Control Plane</h2>
+<p>Main code: <code>weathergraph/model.py</code></p>
+<p>What it does:</p>
+<ul>
+<li>Accepts either an <code>xarray.Dataset</code> or a <code>DataSourceAdapter</code>.</li>
+<li>Converts atmospheric variables into the strict 78-channel model order.</li>
+<li>Creates and owns the runtime engine.</li>
+<li>Provides single-step prediction, autoregressive rollout, and export helpers.</li>
+<li>Applies exact tile-bundle orchestration when tiled inference is enabled.</li>
+</ul>
+<p>Main public entry points:</p>
+<ul>
+<li><code>weathergraph.accessor</code> (<code>ds.weathergraph.predict()</code>)</li>
+<li><code>predict_one_step()</code></li>
+<li><code>forecast()</code></li>
+<li><code>iter_forecast()</code></li>
+<li><code>forecast_export()</code></li>
+<li><code>predict_ensemble()</code></li>
+</ul>
+<h2 id="4-strict-atmospheric-input-contract">4. Strict Atmospheric Input Contract</h2>
+<p>Main code: <code>weathergraph/model.py</code>, <code>weathergraph/data_sources.py</code></p>
+<p>Current reference contract:</p>
+<ul>
+<li>Variables: <code>z</code>, <code>q</code>, <code>t</code>, <code>u</code>, <code>v</code>, <code>w</code></li>
+<li>Pressure levels: <code>50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000</code></li>
+<li>Channel count: <code>6 variables x 13 levels = 78 channels</code></li>
+</ul>
+<p>Operational meaning:</p>
+<ul>
+<li>If your upstream data does not match this contract, it must be adapted before inference.</li>
+<li>The adapters in <code>weathergraph/data_sources.py</code> exist to normalize external sources into this expected shape.</li>
+</ul>
+<h2 id="5-multiple-data-source-adapters">5. Multiple Data-Source Adapters</h2>
+<p>Main code: <code>weathergraph/data_sources.py</code></p>
+<p>Implemented adapters:</p>
+<ul>
+<li><code>era5_netcdf</code>: local ERA5 NetCDF files.</li>
+<li><code>ecmwf_open</code>: ECMWF open-data forecast download.</li>
+<li><code>cds_era5</code>: Copernicus CDS reanalysis download.</li>
+<li><code>gfs</code>: NOAA GFS download through public data access.</li>
+<li><code>open_meteo</code>: single-point forecast source.</li>
+<li><code>zarr</code>: local or cloud-hosted Zarr store (GCS/S3/Azure).</li>
+<li><code>custom</code>: custom file and variable mapping.</li>
+</ul>
+<p>Why it matters:</p>
+<ul>
+<li>The model runtime does not need to care where the initial state came from.</li>
+<li>Pipelines can swap data sources without rewriting inference code.</li>
+</ul>
+<h2 id="6-forecast-modes">6. Forecast Modes</h2>
+<p>Main code: <code>weathergraph/model.py</code></p>
+<h3 id="predict_one_step"><code>predict_one_step()</code></h3>
+<p>Use this when you need exactly one 6-hour prediction from a prepared state.</p>
+<h3 id="forecast"><code>forecast()</code></h3>
+<p>Use this when you want a Python list containing every autoregressive step or a CF-1.11 compliant <code>xr.Dataset</code> (the default).</p>
+<p>Trade-off:</p>
+<ul>
+<li>Easy to inspect in Python.</li>
+<li>Returns a rich <code>xr.Dataset</code> with full CF metadata when <code>as_dataset=True</code> (default).</li>
+<li>Highest memory cost because the full trajectory is materialized in RAM.</li>
+</ul>
+<h3 id="iter_forecast"><code>iter_forecast()</code></h3>
+<p>Use this when you want to process steps one-by-one.</p>
+<p>Trade-off:</p>
+<ul>
+<li>Lower peak memory than <code>forecast()</code>.</li>
+<li>Better choice for long rollouts or streaming post-processing.</li>
+</ul>
+<h3 id="forecast_export"><code>forecast_export()</code></h3>
+<p>Use this when the real goal is an output artifact on disk, not an in-memory Python list.</p>
+<p>Supported formats:</p>
+<ul>
+<li><code>netcdf4</code></li>
+<li><code>zarr</code></li>
+<li><code>npz</code></li>
+</ul>
+<p>Behavior:</p>
+<ul>
+<li><code>netcdf4</code> and <code>zarr</code> stream step-by-step to disk.</li>
+<li><code>npz</code> still materializes the trajectory first because the archive format is not append-friendly.</li>
+</ul>
+<h3 id="predict_ensemble"><code>predict_ensemble()</code></h3>
+<p>Use this when you need probabilistic forecasts (ensemble variance, threshold probabilities).</p>
+<p>Trade-off:</p>
+<ul>
+<li>Calculates aggregated statistics (mean, variance) and threshold probabilities on the fly in C++ using Welford's algorithm.</li>
+<li>Uses $O(1)$ memory regarding the number of ensemble members — it does not materialize every scenario in RAM.</li>
+<li>Applies per-channel Gaussian noise at every autoregressive step to physically simulate diverging scenarios.</li>
+<li>Allows filtering output down to specific <code>aggregate_steps</code> to heavily reduce the time-dimension footprint (especially critical for high-resolution 0.1° runs).</li>
+</ul>
+<h2 id="7-optional-onnx-runtime-controls">7. Optional ONNX Runtime Controls</h2>
+<p>Main code: <code>src/cpp/main.cpp</code>, <code>weathergraph/model.py</code></p>
+<p>Implemented runtime knobs:</p>
+<ul>
+<li><code>intra_op_threads</code></li>
+<li><code>execution_provider</code></li>
+<li><code>execution_device_id</code></li>
+<li><code>execution_memory_limit</code></li>
+<li><code>execution_provider_options</code></li>
+<li><code>disable_cpu_ep_fallback</code></li>
+<li><code>disable_cpu_mem_arena</code></li>
+<li><code>disable_mem_pattern</code></li>
+</ul>
+<h3 id="low-memory-cpu-controls">Low-memory CPU controls</h3>
+<p>What the low-memory switches do:</p>
+<ul>
+<li><code>disable_cpu_mem_arena=True</code> disables ONNX Runtime's CPU arena allocator.</li>
+<li><code>disable_mem_pattern=True</code> disables ONNX Runtime memory-pattern reuse.</li>
+</ul>
+<p>Why this exists:</p>
+<ul>
+<li>On memory-constrained machines, reserved RSS can matter more than raw throughput.</li>
+<li>These switches make it possible to lower static memory reservation in exchange for slower execution.</li>
+</ul>
+<p>When to use it:</p>
+<ul>
+<li>Constrained CPU inference.</li>
+<li>Troubleshooting memory headroom or false OOM conditions.</li>
+<li>Pipeline runs where latency is less important than staying within a memory budget.</li>
+</ul>
+<p>When not to use it by default:</p>
+<ul>
+<li>Throughput-oriented workstation runs.</li>
+<li>Stable environments where allocator reuse is beneficial.</li>
+</ul>
+<h3 id="accelerator-execution-provider-controls">Accelerator execution-provider controls</h3>
+<p>What the accelerator switches do:</p>
+<ul>
+<li><code>execution_provider</code> selects <code>cuda</code>, <code>tensorrt</code>, <code>rocm</code>, or <code>openvino</code> when the matching execution-provider libraries are available.</li>
+<li><code>execution_device_id</code> selects which accelerator ordinal to use.</li>
+<li><code>execution_memory_limit</code> lets operators place an explicit cap on the provider arena or workspace.</li>
+<li><code>execution_provider_options</code> forwards provider-specific JSON configuration without widening the Python API surface.</li>
+<li><code>disable_cpu_ep_fallback=True</code> turns silent mixed CPU/accelerator placement into a fail-fast contract.</li>
+</ul>
+<p>Why this exists:</p>
+<ul>
+<li>Workstation and batch deployments often have more accelerator throughput than CPU throughput for the same model.</li>
+<li>Operators need to choose whether partial CPU fallback is acceptable or whether the whole graph must stay on the selected accelerator.</li>
+</ul>
+<p>Operational prerequisites:</p>
+<ul>
+<li>The ONNX Runtime bundle must include the chosen execution-provider shared libraries.</li>
+<li>The host or container must provide the vendor runtime compatible with that ONNX Runtime build.</li>
+<li>The current backend still feeds tensors from CPU memory; ONNX Runtime handles the host-device transfers internally.</li>
+</ul>
+<p>When to use it:</p>
+<ul>
+<li>Accelerator-equipped workstations or batch nodes.</li>
+<li>Strict validation runs where silent CPU fallback would hide an incomplete accelerator deployment.</li>
+<li>Latency-sensitive runs where accelerator execution is the main throughput path.</li>
+</ul>
+<p>When not to use it by default:</p>
+<ul>
+<li>CPU-only hosts.</li>
+<li>Environments where the required provider libraries or vendor runtime stack are not controlled.</li>
+</ul>
+<h2 id="8-exact-spatial-tiling">8. Exact Spatial Tiling</h2>
+<p>Main code: <code>weathergraph/model.py</code></p>
+<p>Implemented runtime knobs:</p>
+<ul>
+<li><code>spatial_tiling</code></li>
+<li><code>tile_bundle_path</code></li>
+<li><code>reference_grid_shape</code></li>
+<li><code>reference_grid_resolution_degrees</code></li>
+<li><code>tile_state_backend</code></li>
+<li><code>tile_state_dir</code></li>
+</ul>
+<p>What this feature is:</p>
+<ul>
+<li>A graph-aware tiled execution path.</li>
+<li>It is exact-only.</li>
+<li>It requires a tile bundle manifest plus per-tile ONNX artifacts and explicit input/output node-index arrays.</li>
+</ul>
+<p>What it is not:</p>
+<ul>
+<li>It is not naive node slicing.</li>
+<li>It is not an approximation mode.</li>
+<li>It does not auto-export per-tile ONNX artifacts from an arbitrary global model.</li>
+</ul>
+<p>How it works at runtime:</p>
+<ul>
+<li>The Python layer loads the tile manifest.</li>
+<li>Each tile receives the correct input node subset.</li>
+<li>Each tile produces output for its owned nodes.</li>
+<li>The global output buffer is reconstructed by writing each tile result into the declared output indices.</li>
+</ul>
+<p>Fail-fast behavior:</p>
+<ul>
+<li>If tiling is requested without a tile bundle, the model raises an error.</li>
+<li>If output coverage overlaps or leaves gaps, the bundle is rejected.</li>
+<li>If a tile produces the wrong output shape, execution stops immediately.</li>
+</ul>
+<p>Bundle preparation support:</p>
+<ul>
+<li><code>weathergraph build-tile-bundle</code> and <code>python exporter/build_tile_bundle.py</code> can package a valid bundle manifest, output ownership indices, halo-expanded input indices, and memory-sizing metadata.</li>
+<li>This builder requires graph senders/receivers arrays plus already exported per-tile ONNX files.</li>
+<li>Per-tile ONNX export remains separate from bundle packaging.</li>
+</ul>
+<h2 id="9-climate-ecosystem-integration">9. Climate Ecosystem Integration</h2>
+<p>WeatherGraph provides seamless integration with the climate-science Python ecosystem.</p>
+<h3 id="cf-111-convention-compliance">CF-1.11 Convention Compliance</h3>
+<p>All forecast outputs (including NetCDF and Zarr exports) carry standard CF metadata (<code>standard_name</code>, <code>units</code>, <code>Conventions</code>). This ensures interoperability with any CF-aware library.</p>
+<h3 id="xarray-accessor">Xarray Accessor</h3>
+<p>The <code>weathergraph</code> Xarray accessor allows researchers to run predictions directly on Datasets (<code>ds.weathergraph.predict()</code>), completely hiding the C++ inference engine.</p>
+<h3 id="metpy-xcdat">MetPy &amp; xCDAT</h3>
+<ul>
+<li><strong>MetPy</strong>: <code>ds.weathergraph.prepare_for_metpy()</code> sorts pressure levels and adds CRS metadata for thermodynamic profile calculations.</li>
+<li><strong>xCDAT</strong>: <code>ds.weathergraph.prepare_for_xcdat()</code> adds spatial and temporal bounds for proper climate climatology calculations.</li>
+<li><strong>Derived Diagnostics</strong>: Automatically compute <code>wind_speed</code> and <code>geopotential_height</code>.</li>
+</ul>
+<h2 id="10-reference-grid-streaming-export">10. Reference-Grid Streaming Export</h2>
+<p>Main code: <code>weathergraph/model.py</code></p>
+<p>The current export path reshapes node outputs using configured reference-grid metadata instead of a permanently fixed 1-degree layout.</p>
+<p>What this means:</p>
+<ul>
+<li>NetCDF4 and Zarr export are production-usable when the model or tile bundle exposes enough nodes for the configured reference grid.</li>
+<li>Generic export for arbitrary graph layouts without reference-grid metadata is still not implemented.</li>
+<li>Raw <code>npz</code> export remains the more general fallback when you only need the trajectory tensor.</li>
+</ul>
+<h2 id="11-pipeline-integrations">11. Pipeline Integrations</h2>
+<p>Operational surfaces already wired to the current runtime:</p>
+<ul>
+<li><code>weathergraph.cli</code></li>
+<li><code>examples/simulate_meteorologist.py</code></li>
+<li><code>examples/playbooks/jupiter_notebook.ipynb</code></li>
+<li><code>examples/playbooks/github_actions.yml</code></li>
+<li><code>examples/playbooks/ansible/site.yml</code></li>
+<li><code>examples/playbooks/terraform/</code></li>
+<li><code>examples/playbooks/gcp/batch-job.yaml</code></li>
+<li><code>examples/playbooks/aws/cloudformation.yaml</code></li>
+<li><code>.github/workflows/model-pipeline.yml</code></li>
+</ul>
+<p>These surfaces already accept the important runtime controls such as generic execution-provider settings, low-memory flags, exact tiling parameters, and configurable reference-grid metadata.</p>
+<h2 id="12-validation-and-safety-features">12. Validation and Safety Features</h2>
+<p>Main code: <code>tests/</code></p>
+<p>Current validation coverage includes:</p>
+<ul>
+<li>backend output-shape handling</li>
+<li>low-memory flag forwarding</li>
+<li>contiguous-input enforcement</li>
+<li>dynamic runtime configuration</li>
+<li>exact tile-bundle stitching</li>
+<li>streaming export dispatch</li>
+<li>historical validation separation into smoke and optional extended checks</li>
+<li>repeated-inference memory behavior testing</li>
+</ul>
+<h2 id="practical-deployment-expectations">Practical Deployment Expectations</h2>
+<p>WeatherGraph should be explained using two different expectations instead of one generic RAM claim.</p>
+<h3 id="experimental-1-degree-reference-profile">Experimental 1-degree reference profile</h3>
+<p>Use this for:</p>
+<ul>
+<li>backend validation</li>
+<li>exporter experiments</li>
+<li>coarse global smoke tests</li>
+</ul>
+<h3 id="recommended-025-degree-workstation-profile">Recommended 0.25-degree workstation profile</h3>
+<p>Use this mental model for serious global inference.</p>
+<p>Practical implication:</p>
+<ul>
+<li>single-step and short-rollout runs should be planned with workstation-level memory</li>
+<li>long rollouts and full-trajectory exports need materially more headroom</li>
+<li><code>iter_forecast()</code>, <code>forecast_export()</code>, and optional low-memory mode are important tools, but they do not change the fact that high-resolution inference remains a workstation-class workload</li>
+</ul>
+<h2 id="intentional-non-goals-in-the-current-tree">Intentional Non-Goals in the Current Tree</h2>
+<p>Not implemented yet:</p>
+<ul>
+<li>automatic tile-bundle generation from a global ONNX model</li>
+<li>approximate spatial slicing</li>
+<li>generic graph-to-grid export metadata for arbitrary node layouts</li>
+<li>benchmark publication for all allocator-disabled and tiled runtime profiles</li>
+</ul>
+<h2 id="feature-to-code-map">Feature-to-Code Map</h2>
+<ul>
+<li>Runtime backend: <code>src/cpp/main.cpp</code></li>
+<li>Python orchestration: <code>weathergraph/model.py</code></li>
+<li>Data ingestion adapters: <code>weathergraph/data_sources.py</code></li>
+<li>Exporter experiments: <code>exporter/</code></li>
+<li>Tests and contract verification: <code>tests/</code></li>
+<li>Operational usage examples: <code>examples/</code></li>
+</ul>
+<h2 id="data-sanitization-hard-constraints">Data Sanitization &amp; Hard Constraints</h2>
+<p>WeatherGraph provides built-in mechanisms to maintain model stability and physical consistency during long rollouts:</p>
+<ol>
+<li><strong>Data Sanitization</strong>: Before every inference step, the C++ engine scans the input state. Any <code>NaN</code> or <code>Inf</code> values are immediately replaced with <code>0.0</code>. This prevents bad historical data or numerical instability from permanently corrupting the autoregressive state.</li>
+<li><strong>Hard Constraints</strong>: You can supply an optional ONNX model representing physical constraints. This secondary model runs zero-copy <em>in-place</em> on the output of the main model inside the C++ backend.</li>
+</ol>
+<h3 id="implementing-hard-constraints">Implementing Hard Constraints</h3>
+<p>To implement physical bounds (like preventing negative humidity or capping extreme wind speeds), you can build a small ONNX graph that takes the atmospheric state tensor as input and returns the constrained tensor. </p>
+<p>Because the C++ engine executes this constraints graph <em>in-place</em> using the same memory buffers, it avoids costly memory allocations and keeps the autoregressive loop extremely fast.</p>
+<p><strong>Example: Building a Constraint Graph with PyTorch</strong></p>
+<p>This example script generates a constraint graph that clamps specific humidity (e.g., at channel index 6) to a minimum of 0.0, ensuring non-negative moisture during inference:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">WeatherConstraints</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="c1"># x shape: [1, nodes, 78] (batch_size, num_nodes, channels)</span>
+
+        <span class="c1"># Clone or modify the tensor</span>
+        <span class="c1"># For ONNX export, we can reconstruct the tensor or use in-place-like ops.</span>
+        <span class="c1"># Example: specific humidity is at channel index 6.</span>
+        <span class="c1"># We clamp it to be &gt;= 0.0</span>
+        <span class="n">q_clamped</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">6</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="c1"># Reconstruct the tensor with the clamped channel</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span>
+            <span class="n">x</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">6</span><span class="p">],</span>
+            <span class="n">q_clamped</span><span class="p">,</span>
+            <span class="n">x</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">7</span><span class="p">:]</span>
+        <span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">out</span>
+
+<span class="c1"># Export the graph to ONNX</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">WeatherConstraints</span><span class="p">()</span>
+<span class="n">dummy_input</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">40962</span><span class="p">,</span> <span class="mi">78</span><span class="p">)</span> <span class="c1"># Dynamic node count is supported</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">onnx</span><span class="o">.</span><span class="n">export</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span> 
+    <span class="n">dummy_input</span><span class="p">,</span> 
+    <span class="s2">&quot;humidity_constraint.onnx&quot;</span><span class="p">,</span>
+    <span class="n">input_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">],</span>
+    <span class="n">output_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">],</span>
+    <span class="n">dynamic_axes</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;nodes&quot;</span><span class="p">},</span> <span class="s2">&quot;output&quot;</span><span class="p">:</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;nodes&quot;</span><span class="p">}},</span> <span class="c1"># Crucial for varying resolutions</span>
+    <span class="n">opset_version</span><span class="o">=</span><span class="mi">15</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><strong>Using the Constraints Graph</strong></p>
+<p>Simply pass the generated ONNX file to <code>WeatherGraphModel</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">model</span> <span class="o">=</span> <span class="n">WeatherGraphModel</span><span class="p">(</span>
+    <span class="n">model_path</span><span class="o">=</span><span class="s2">&quot;models/weather_gnn.onnx&quot;</span><span class="p">,</span>
+    <span class="n">weights_dir</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span>
+    <span class="n">constraints_model_path</span><span class="o">=</span><span class="s2">&quot;humidity_constraint.onnx&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The C++ backend will automatically load <code>humidity_constraint.onnx</code> and apply it seamlessly at the end of every autoregressive step, keeping the simulation physically consistent over long rollouts without any Python-side intervention.</p>
+<h2 id="halo-exchange-for-tiled-inference">Halo Exchange for Tiled Inference</h2>
+<p>When running high-resolution 0.1° models via spatial tiling, independent tiles can introduce discontinuities or "seams" at their boundaries.
+WeatherGraph supports <strong>Halo Exchange</strong> out of the box if <code>output_weights_path</code> is specified in the tile bundle manifest.
+- Outputs from overlapping tiles are multiplied by their respective spatial weights (e.g., a 2D Hann window).
+- Overlapping regions are accumulated and normalized by the total weight dynamically, eliminating seams entirely.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "toc.integrate", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

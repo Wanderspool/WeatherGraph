@@ -240,6 +240,7 @@ def build_parser() -> argparse.ArgumentParser:
     vis_parser.add_argument("--cmap", default="viridis", help="Colormap name.")
     vis_parser.add_argument("--time-index", type=int, default=0, help="Time index for HTML map generation.")
     vis_parser.add_argument("--resolution", choices=["high", "medium", "low"], default="medium", help="Output resolution for animations.")
+    vis_parser.add_argument("--fps", type=int, default=5, help="Frames per second for animations.")
     vis_parser.set_defaults(func=_cmd_visualize)
 
     # ── Ensemble subcommand ──
@@ -623,7 +624,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         from .utils import get_default_cache_dir, load_env_file, prompt_for_credentials
     except ImportError:
-        import sys
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from weathergraph.utils import get_default_cache_dir, load_env_file, prompt_for_credentials
 

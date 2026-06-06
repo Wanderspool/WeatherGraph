@@ -205,8 +205,8 @@ def test_cli_visualize(monkeypatch, capsys, tmp_path):
         import types
         return types.SimpleNamespace(save=lambda path: calls.update({"saved_html": path}))
 
-    def fake_create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis", fps=5):
-        calls["anim"] = {"variable": variable, "output_path": output_path, "format": format, "cmap_name": cmap_name, "fps": fps}
+    def fake_create_animation(ds, variable, output_path, format="mp4", cmap_name="viridis", fps=5, resolution="medium", **kwargs):
+        calls["anim"] = {"variable": variable, "output_path": output_path, "format": format, "cmap_name": cmap_name, "fps": fps, "resolution": resolution}
 
     import xarray as xr
     def fake_open_dataset(path):
